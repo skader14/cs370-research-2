@@ -22,10 +22,14 @@ public class CloudletSchedulerTimeSharedMonitor extends CloudletSchedulerTimeSha
 	private double prevMonitoredTime = 0;
 	private double vmMips = 0;
 	
+	// Protected lists to match parent class functionality
+	protected List<ResCloudlet> cloudletFailedList;
+	
 	
 	public CloudletSchedulerTimeSharedMonitor(long vmMipsPerPE, double timeout) {
 		vmMips = vmMipsPerPE;
 		timeoutLimit = timeout;
+		cloudletFailedList = new ArrayList<ResCloudlet>();
 	}
 
 	public long getTotalProcessingPreviousTime(double currentTime, List<Double> mipsShare) {
@@ -81,6 +85,10 @@ public class CloudletSchedulerTimeSharedMonitor extends CloudletSchedulerTimeSha
 		return ret;
 	}
 	
+	protected List<ResCloudlet> getCloudletFailedList() {
+		return cloudletFailedList;
+	}
+
 	@Override
 	public List<Cloudlet> getFailedCloudlet() {
 		List<Cloudlet> failed = new ArrayList<Cloudlet>();

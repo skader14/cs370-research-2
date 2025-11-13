@@ -21,9 +21,13 @@ public class CloudletSchedulerSpaceSharedMonitor extends CloudletSchedulerSpaceS
 	private double prevMonitoredTime = 0;
 	private double timeoutLimit = Double.POSITIVE_INFINITY;
 	
+	// Protected lists to match parent class functionality
+	protected List<ResCloudlet> cloudletFailedList;
+	
 	public CloudletSchedulerSpaceSharedMonitor(double timeOut) {
 		super();
 		this.timeoutLimit = timeOut;
+		cloudletFailedList = new ArrayList<ResCloudlet>();
 	}
 	
 	@Override
@@ -33,6 +37,10 @@ public class CloudletSchedulerSpaceSharedMonitor extends CloudletSchedulerSpaceS
 		return ret;
 	}
 	
+	protected List<ResCloudlet> getCloudletFailedList() {
+		return cloudletFailedList;
+	}
+
 	@Override
 	public List<Cloudlet> getFailedCloudlet() {
 		List<Cloudlet> failed = new ArrayList<Cloudlet>();
@@ -125,7 +133,7 @@ public class CloudletSchedulerSpaceSharedMonitor extends CloudletSchedulerSpaceS
 	
 	
 	public int getNumAllCloudlets() {
-		return super.cloudletExecList.size() + super.cloudletFailedList.size() + super.getCloudletFinishedList().size() +
-				super.cloudletPausedList.size() + super.cloudletWaitingList.size();
+		return getCloudletExecList().size() + getCloudletFailedList().size() + getCloudletFinishedList().size() +
+				getCloudletPausedList().size() + getCloudletWaitingList().size();
 	}
 }
