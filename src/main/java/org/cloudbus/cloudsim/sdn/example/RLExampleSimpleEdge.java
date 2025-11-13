@@ -29,12 +29,11 @@ import org.cloudbus.cloudsim.sdn.rl.RLIntervalEntity;
 public class RLExampleSimpleEdge {
 
     // Use the simple-edge example files
-    protected static String physicalFile = "example-edge-simple/edge.physical.json";
-    protected static String virtualFile  = "example-edge-simple/edge.virtual.json";
+    protected static String physicalFile = "dataset-energy/energy-physical.json";
+    protected static String virtualFile  = "dataset-energy/energy-virtual.json";
 
     protected static String[] workloadFiles = {
-        "example-edge-simple/edge.workload_host1.csv",
-        "example-edge-simple/edge.workload_host2.csv"
+        "dataset-energy/energy-workload.csv"
     };
 
     protected static NetworkOperatingSystem nos;
@@ -79,8 +78,9 @@ public class RLExampleSimpleEdge {
             pipe.startPython();
             RLIntervalEntity rlEntity = new RLIntervalEntity(
                 "RL_Entity",
-                5.0,   // every 5 seconds
-                pipe
+                1000.0,   // every 5 seconds
+                pipe,
+                nos
             );
 
             CloudSim.addEntity(rlEntity);

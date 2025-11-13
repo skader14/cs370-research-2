@@ -423,6 +423,10 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 		}
 	}
 
+	public ChannelManager getChannelManager() {
+		return this.channelManager;
+	}	
+
 	public void addExtraVm(SDNVm vm, NetworkOperatingSystem callback) {
 		vmMapId2Vm.put(vm.getId(), vm);
 		gvmMapId2Vm.put(vm.getId(), vm);

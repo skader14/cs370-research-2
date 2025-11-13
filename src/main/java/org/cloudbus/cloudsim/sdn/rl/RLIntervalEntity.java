@@ -4,6 +4,8 @@ import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.SimEntity;
 import org.cloudbus.cloudsim.core.SimEvent;
 import org.cloudbus.cloudsim.sdn.rl.RLPipe;
+import org.cloudbus.cloudsim.sdn.nos.NetworkOperatingSystem;
+import org.cloudbus.cloudsim.sdn.nos.NetworkOperatingSystemSimple;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,11 +16,13 @@ public class RLIntervalEntity extends SimEntity {
     private double interval;
     private RLPipe pipe;
     private int counter = 0;
+    private NetworkOperatingSystem nos;
 
-    public RLIntervalEntity(String name, double interval, RLPipe pipe) {
+    public RLIntervalEntity(String name, double interval, RLPipe pipe, NetworkOperatingSystem nos) {
         super(name);
         this.interval = interval;
         this.pipe = pipe;
+        this.nos = nos;
     }
 
     @Override
@@ -30,6 +34,19 @@ public class RLIntervalEntity extends SimEntity {
     @Override
     public void processEvent(SimEvent ev) {
         if (ev.getTag() == RL_EVENT) {
+            
+
+            // 1. Stop if CloudSim is trying to finish
+            if (!CloudSim.running()) return;
+
+            // 2. Stop if no flows exist in the network
+            if (nos.getChannelManager().getTotalChannelNum() == 0) {
+                System.out.println("RLIntervalEntity: No flows left, stopping RL.");
+                return;
+            }
+
+
+
             counter++;
 
             // Turn state into JSON string
