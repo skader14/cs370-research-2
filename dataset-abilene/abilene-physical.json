@@ -1,0 +1,38 @@
+{
+  "name": "Abilene",
+  "description": "Internet2 Abilene backbone network topology",
+  "nodes": [
+    {"name": "Seattle", "type": "core", "iops": 1000000000000, "bw": 10000000000},
+    {"name": "Sunnyvale", "type": "core", "iops": 1000000000000, "bw": 10000000000},
+    {"name": "LosAngeles", "type": "core", "iops": 1000000000000, "bw": 10000000000},
+    {"name": "Denver", "type": "core", "iops": 1000000000000, "bw": 10000000000},
+    {"name": "KansasCity", "type": "core", "iops": 1000000000000, "bw": 10000000000},
+    {"name": "Houston", "type": "core", "iops": 1000000000000, "bw": 10000000000},
+    {"name": "Chicago", "type": "core", "iops": 1000000000000, "bw": 10000000000},
+    {"name": "Indianapolis", "type": "core", "iops": 1000000000000, "bw": 10000000000},
+    {"name": "Atlanta", "type": "core", "iops": 1000000000000, "bw": 10000000000},
+    {"name": "Washington", "type": "core", "iops": 1000000000000, "bw": 10000000000},
+    {"name": "NewYork", "type": "core", "iops": 1000000000000, "bw": 10000000000},
+    {"name": "Jacksonville", "type": "core", "iops": 1000000000000, "bw": 10000000000}
+  ],
+  "links": [
+    {"source": "Seattle", "destination": "Sunnyvale", "bw": 10000000000, "latency": 0.005},
+    {"source": "Sunnyvale", "destination": "LosAngeles", "bw": 10000000000, "latency": 0.005},
+    {"source": "Seattle", "destination": "Denver", "bw": 10000000000, "latency": 0.008},
+    {"source": "Sunnyvale", "destination": "Denver", "bw": 10000000000, "latency": 0.007},
+    {"source": "LosAngeles", "destination": "Houston", "bw": 10000000000, "latency": 0.012},
+    {"source": "Denver", "destination": "KansasCity", "bw": 10000000000, "latency": 0.005},
+    {"source": "KansasCity", "destination": "Houston", "bw": 10000000000, "latency": 0.006},
+    {"source": "KansasCity", "destination": "Chicago", "bw": 10000000000, "latency": 0.004},
+    {"source": "KansasCity", "destination": "Indianapolis", "bw": 10000000000, "latency": 0.004},
+    {"source": "Chicago", "destination": "Indianapolis", "bw": 10000000000, "latency": 0.002},
+    {"source": "Indianapolis", "destination": "Atlanta", "bw": 10000000000, "latency": 0.005},
+    {"source": "Houston", "destination": "Atlanta", "bw": 10000000000, "latency": 0.006},
+    {"source": "Atlanta", "destination": "Washington", "bw": 10000000000, "latency": 0.005},
+    {"source": "Washington", "destination": "NewYork", "bw": 10000000000, "latency": 0.003},
+    {"source": "Chicago", "destination": "NewYork", "bw": 10000000000, "latency": 0.007},
+    {"source": "Indianapolis", "destination": "Washington", "bw": 10000000000, "latency": 0.006},
+    {"source": "Atlanta", "destination": "Jacksonville", "bw": 2500000000, "latency": 0.003},
+    {"source": "Houston", "destination": "Jacksonville", "bw": 2500000000, "latency": 0.008}
+  ]
+}
