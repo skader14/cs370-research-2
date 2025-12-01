@@ -28,6 +28,8 @@ import java.util.*;
  *   0: Seattle, 1: Sunnyvale, 2: LosAngeles, 3: Denver,
  *   4: KansasCity, 5: Houston, 6: Chicago, 7: Indianapolis,
  *   8: Atlanta, 9: Washington, 10: NewYork, 11: Jacksonville
+ * 
+ * TERMINATION: Stops when max simulation time reached OR after consecutive idle intervals.
  */
 public class CFRRLIntervalEntity extends SimEntity {
 
@@ -38,12 +40,20 @@ public class CFRRLIntervalEntity extends SimEntity {
     private static final int NUM_NODES = 12;
     private static final int NUM_FLOWS = 132;  // 12 * 11
     
+    // Termination constants
+    private static final double DEFAULT_MAX_SIM_TIME = 120.0;  // 2 minutes default
+    private static final int MAX_CONSECUTIVE_IDLE = 3;  // Stop after 3 idle intervals
+    
     private double interval;
     private RLPipe pipe;
     private NetworkOperatingSystem nos;
     private LinkSelectionPolicyCFRRL cfrrlPolicy;
     private int kCritical;
     private int updateCounter = 0;
+    
+    // Termination tracking
+    private double maxSimulationTime;
+    private int consecutiveIdleCount = 0;
     
     // Normalization constants (matching training)
     private double maxDemandSeen = 1e9;      // 1 Gbps default
@@ -57,14 +67,23 @@ public class CFRRLIntervalEntity extends SimEntity {
                                 NetworkOperatingSystem nos,
                                 LinkSelectionPolicyCFRRL cfrrlPolicy,
                                 int kCritical) {
+        this(name, interval, pipe, nos, cfrrlPolicy, kCritical, DEFAULT_MAX_SIM_TIME);
+    }
+    
+    public CFRRLIntervalEntity(String name, double interval, RLPipe pipe, 
+                                NetworkOperatingSystem nos,
+                                LinkSelectionPolicyCFRRL cfrrlPolicy,
+                                int kCritical, double maxSimulationTime) {
         super(name);
         this.interval = interval;
         this.pipe = pipe;
         this.nos = nos;
         this.cfrrlPolicy = cfrrlPolicy;
         this.kCritical = kCritical;
+        this.maxSimulationTime = maxSimulationTime;
         
         CFRRLLogger.info(LOG_TAG, "Created with interval=" + interval + "s, K=" + kCritical);
+        CFRRLLogger.info(LOG_TAG, "Max simulation time: " + maxSimulationTime + "s");
         CFRRLLogger.info(LOG_TAG, "Will always emit " + NUM_FLOWS + " flow slots");
     }
 
@@ -84,23 +103,56 @@ public class CFRRLIntervalEntity extends SimEntity {
         if (ev.getTag() == CFRRL_UPDATE_EVENT) {
             CFRRLLogger.debug(LOG_TAG, "--- Processing RL Update Event ---");
             
+            double currentTime = CloudSim.clock();
+            
+            // === TERMINATION CHECK 1: Maximum simulation time ===
+            if (currentTime >= maxSimulationTime) {
+                CFRRLLogger.info(LOG_TAG, "=== STOPPING: Max simulation time reached (" + 
+                               currentTime + " >= " + maxSimulationTime + ") ===");
+                printFinalSummary();
+                return;  // Don't schedule next update
+            }
+            
             performRLUpdate();
             
-            // Check if we should continue
-            boolean hasMoreEvents = CloudSimEx.hasMoreEvent(CFRRL_UPDATE_EVENT);
+            // Check activity for termination
             int activeChannels = (int) nos.getChannelManager().getTotalChannelNum();
             
-            CFRRLLogger.debug(LOG_TAG, "Has more events (excluding RL): " + hasMoreEvents);
             CFRRLLogger.debug(LOG_TAG, "Active channels: " + activeChannels);
             
-            if (hasMoreEvents || activeChannels > 0) {
-                double nextTime = CloudSim.clock() + interval;
-                CFRRLLogger.debug(LOG_TAG, "Scheduling next update at t=" + nextTime);
-                schedule(getId(), interval, CFRRL_UPDATE_EVENT);
+            // === TERMINATION CHECK 2: Consecutive idle detection ===
+            if (activeChannels == 0) {
+                consecutiveIdleCount++;
+                CFRRLLogger.debug(LOG_TAG, "Idle interval #" + consecutiveIdleCount + 
+                                " of " + MAX_CONSECUTIVE_IDLE);
+                
+                if (consecutiveIdleCount >= MAX_CONSECUTIVE_IDLE) {
+                    CFRRLLogger.info(LOG_TAG, "=== STOPPING: " + MAX_CONSECUTIVE_IDLE + 
+                                   " consecutive idle intervals ===");
+                    printFinalSummary();
+                    return;  // Don't schedule next update
+                }
             } else {
-                CFRRLLogger.info(LOG_TAG, "STOPPING: hasMoreEvents=" + hasMoreEvents + 
-                               ", activeChannels=" + activeChannels);
+                // Reset idle counter when there's activity
+                if (consecutiveIdleCount > 0) {
+                    CFRRLLogger.debug(LOG_TAG, "Activity detected, resetting idle counter");
+                }
+                consecutiveIdleCount = 0;
             }
+            
+            // Schedule next update
+            double nextTime = currentTime + interval;
+            CFRRLLogger.debug(LOG_TAG, "Scheduling next update at t=" + nextTime);
+            schedule(getId(), interval, CFRRL_UPDATE_EVENT);
+        }
+    }
+    
+    private void printFinalSummary() {
+        CFRRLLogger.section("SIMULATION COMPLETE");
+        CFRRLLogger.info(LOG_TAG, "Total RL updates: " + updateCounter);
+        CFRRLLogger.info(LOG_TAG, "Final simulation time: " + CloudSim.clock());
+        if (cfrrlPolicy != null) {
+            CFRRLLogger.info(LOG_TAG, "Final routing stats: " + cfrrlPolicy.getStatistics());
         }
     }
 

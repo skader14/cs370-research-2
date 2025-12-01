@@ -1,6 +1,10 @@
 # MACHINE LEARNING
 Using RL folder, files fat_tree_/abilene_: lp_solver, topology, traffic_gen, and trainer_v2. Run RL/abilene_trainer_v2.py for the model.
 
+Run mvn exec:java "-Dexec.mainClass=org.cloudbus.cloudsim.sdn.example.CFRRLExample"
+
+to run the CFRRL version. Still need to check it against a normal version and compare stats.
+
 
 # CloudSimSDN
 
