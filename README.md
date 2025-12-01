@@ -1,5 +1,5 @@
 # MACHINE LEARNING
-Using RL folder, files fat_tree_: lp_solver, topology, traffic_gen, and trainer_v2. Run RL/fattreetrainerv2 for the model.
+Using RL folder, files fat_tree_/abilene_: lp_solver, topology, traffic_gen, and trainer_v2. Run RL/abilene_trainer_v2.py for the model.
 
 
 # CloudSimSDN
