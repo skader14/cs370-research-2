@@ -148,6 +148,59 @@ public class Channel {
 
 	}
 
+	// ============== Additional public methods for CFRRL Implementation ==============
+
+	/**
+	 * Get the number of hops (links) in this channel's path.
+	 * @return number of links in the path
+	 */
+	public int getPathLength() {
+		return links.size();
+	}
+
+	/**
+	 * Get the bottleneck bandwidth - minimum available bandwidth along the path.
+	 * This is useful for CFR-RL to identify constrained flows.
+	 * @return lowest shared bandwidth in bytes/second
+	 */
+	public double getBottleneckBandwidth() {
+		return getLowestSharedBandwidth();
+	}
+
+	/**
+	 * Get the total link capacity of the bottleneck link.
+	 * @return capacity of the most constrained link
+	 */
+	public double getBottleneckCapacity() {
+		double lowestCap = Double.POSITIVE_INFINITY;
+		for (Link link : links) {
+			if (link.getBw() < lowestCap) {
+				lowestCap = link.getBw();
+			}
+		}
+		return lowestCap;
+	}
+
+	/**
+	 * Get the list of links this channel passes through.
+	 * @return unmodifiable list of links
+	 */
+	public List<Link> getLinks() {
+		return java.util.Collections.unmodifiableList(links);
+	}
+
+	/**
+	 * Get the list of nodes this channel passes through.
+	 * @return unmodifiable list of nodes  
+	 */
+	public List<Node> getNodes() {
+		return java.util.Collections.unmodifiableList(nodes);
+	}
+
+	// ============== END OF ADDITIONS ==============
+
+
+
 	// Channel adjustment!
 	private boolean allocateMoreAvailableBw = false; // if true, we allocate leftover BW to channels (will get more than requested)
 	
@@ -470,6 +523,6 @@ public class Channel {
 		if(packetScheduler.getCompletedTransmission().isEmpty()
 				&& packetScheduler.getTimedOutTransmission().isEmpty())
 			return false;	// Nothing changed
-		return true;
+		return true;	
 	}
 }
