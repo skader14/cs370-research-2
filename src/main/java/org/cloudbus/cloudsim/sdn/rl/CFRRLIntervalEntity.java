@@ -8,7 +8,6 @@ import org.cloudbus.cloudsim.sdn.nos.ChannelManager;
 import org.cloudbus.cloudsim.sdn.nos.NetworkOperatingSystem;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.Link;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.Node;
-import org.cloudbus.cloudsim.sdn.physicalcomponents.PhysicalTopology;
 import org.cloudbus.cloudsim.sdn.physicalcomponents.SDNHost;
 import org.cloudbus.cloudsim.sdn.policies.selectlink.LinkSelectionPolicyCFRRL;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.Channel;
@@ -18,12 +17,26 @@ import java.util.*;
 /**
  * CFR-RL Interval Entity - Periodically updates critical flow selection.
  * 
- * With comprehensive logging for debugging.
+ * IMPORTANT: This version always emits exactly 132 flow slots to match
+ * the Abilene topology model expectations (12 nodes * 11 destinations = 132 flows).
+ * Inactive flows are represented with zero bandwidth and default features.
+ * 
+ * Flow Index Mapping:
+ *   flowIdx = src * 11 + (dst if dst < src else dst - 1)
+ *   
+ * Node Index to Name:
+ *   0: Seattle, 1: Sunnyvale, 2: LosAngeles, 3: Denver,
+ *   4: KansasCity, 5: Houston, 6: Chicago, 7: Indianapolis,
+ *   8: Atlanta, 9: Washington, 10: NewYork, 11: Jacksonville
  */
 public class CFRRLIntervalEntity extends SimEntity {
 
     private static final String LOG_TAG = "IntervalEntity";
     private static final int CFRRL_UPDATE_EVENT = 20002;
+    
+    // Abilene topology constants
+    private static final int NUM_NODES = 12;
+    private static final int NUM_FLOWS = 132;  // 12 * 11
     
     private double interval;
     private RLPipe pipe;
@@ -32,8 +45,13 @@ public class CFRRLIntervalEntity extends SimEntity {
     private int kCritical;
     private int updateCounter = 0;
     
-    private double maxDemandSeen = 1e9;
-    private double maxCapacitySeen = 10e9;
+    // Normalization constants (matching training)
+    private double maxDemandSeen = 1e9;      // 1 Gbps default
+    private double maxCapacitySeen = 10e9;   // 10 Gbps default
+    
+    // VM ID to Node Index mapping (populated during first update)
+    private Map<Integer, Integer> vmIdToNodeIndex = new HashMap<>();
+    private boolean mappingInitialized = false;
 
     public CFRRLIntervalEntity(String name, double interval, RLPipe pipe, 
                                 NetworkOperatingSystem nos,
@@ -47,6 +65,7 @@ public class CFRRLIntervalEntity extends SimEntity {
         this.kCritical = kCritical;
         
         CFRRLLogger.info(LOG_TAG, "Created with interval=" + interval + "s, K=" + kCritical);
+        CFRRLLogger.info(LOG_TAG, "Will always emit " + NUM_FLOWS + " flow slots");
     }
 
     @Override
@@ -74,7 +93,7 @@ public class CFRRLIntervalEntity extends SimEntity {
             CFRRLLogger.debug(LOG_TAG, "Has more events (excluding RL): " + hasMoreEvents);
             CFRRLLogger.debug(LOG_TAG, "Active channels: " + activeChannels);
             
-            if (hasMoreEvents && activeChannels > 0) {
+            if (hasMoreEvents || activeChannels > 0) {
                 double nextTime = CloudSim.clock() + interval;
                 CFRRLLogger.debug(LOG_TAG, "Scheduling next update at t=" + nextTime);
                 schedule(getId(), interval, CFRRL_UPDATE_EVENT);
@@ -85,6 +104,80 @@ public class CFRRLIntervalEntity extends SimEntity {
         }
     }
 
+    /**
+     * Initialize VM ID to Node Index mapping.
+     * Assumes VMs are named vm_0, vm_1, ..., vm_11 corresponding to nodes 0-11.
+     */
+    private void initializeVmMapping() {
+        if (mappingInitialized) return;
+        
+        Map<String, Integer> vmNameToId = NetworkOperatingSystem.getVmNameToIdMap();
+        CFRRLLogger.debug(LOG_TAG, "Initializing VM mapping from " + vmNameToId.size() + " VMs");
+        
+        for (Map.Entry<String, Integer> entry : vmNameToId.entrySet()) {
+            String vmName = entry.getKey();
+            Integer vmId = entry.getValue();
+            
+            // Parse node index from VM name (e.g., "vm_5" -> 5)
+            if (vmName.startsWith("vm_")) {
+                try {
+                    int nodeIndex = Integer.parseInt(vmName.substring(3));
+                    if (nodeIndex >= 0 && nodeIndex < NUM_NODES) {
+                        vmIdToNodeIndex.put(vmId, nodeIndex);
+                        CFRRLLogger.debug(LOG_TAG, "Mapped VM " + vmName + " (id=" + vmId + ") to node " + nodeIndex);
+                    }
+                } catch (NumberFormatException e) {
+                    CFRRLLogger.warn(LOG_TAG, "Could not parse node index from VM name: " + vmName);
+                }
+            }
+        }
+        
+        mappingInitialized = true;
+        CFRRLLogger.info(LOG_TAG, "VM mapping initialized: " + vmIdToNodeIndex.size() + " VMs mapped");
+    }
+
+    /**
+     * Compute flow index from source and destination node indices.
+     * Matches the Python model's flow indexing: flowIdx = src * 11 + (dst if dst < src else dst - 1)
+     */
+    private int computeFlowIndex(int srcNode, int dstNode) {
+        if (srcNode == dstNode) {
+            throw new IllegalArgumentException("src and dst cannot be the same");
+        }
+        if (dstNode < srcNode) {
+            return srcNode * 11 + dstNode;
+        } else {
+            return srcNode * 11 + (dstNode - 1);
+        }
+    }
+
+    /**
+     * Get source and destination node indices from flow index.
+     */
+    private int[] getNodePairFromFlowIndex(int flowIdx) {
+        int srcNode = flowIdx / 11;
+        int offset = flowIdx % 11;
+        int dstNode;
+        if (offset < srcNode) {
+            dstNode = offset;
+        } else {
+            dstNode = offset + 1;
+        }
+        return new int[]{srcNode, dstNode};
+    }
+
+    /**
+     * Get node index from VM ID.
+     */
+    private int getNodeIndexFromVmId(int vmId) {
+        Integer nodeIdx = vmIdToNodeIndex.get(vmId);
+        if (nodeIdx == null) {
+            CFRRLLogger.warn(LOG_TAG, "Unknown VM ID: " + vmId + ", defaulting to -1");
+            return -1;
+        }
+        return nodeIdx;
+    }
+
     private void performRLUpdate() {
         updateCounter++;
         double currentTime = CloudSim.clock();
@@ -92,9 +185,12 @@ public class CFRRLIntervalEntity extends SimEntity {
         CFRRLLogger.section("RL UPDATE #" + updateCounter);
         CFRRLLogger.info(LOG_TAG, "Simulation time: " + currentTime);
         
+        // Initialize mapping on first update
+        initializeVmMapping();
+        
         try {
-            // Step 1: Gather state
-            CFRRLLogger.debug(LOG_TAG, "Step 1: Gathering network state...");
+            // Step 1: Gather state (always 132 flows)
+            CFRRLLogger.debug(LOG_TAG, "Step 1: Gathering network state (all " + NUM_FLOWS + " flows)...");
             String stateJson = buildStateJson();
             CFRRLLogger.logJson(LOG_TAG, "State JSON", stateJson);
             
@@ -136,6 +232,10 @@ public class CFRRLIntervalEntity extends SimEntity {
         }
     }
 
+    /**
+     * Build state JSON with exactly 132 flow slots.
+     * Active flows get real data, inactive flows get zeros.
+     */
     private String buildStateJson() {
         StringBuilder sb = new StringBuilder();
         sb.append("{");
@@ -144,103 +244,116 @@ public class CFRRLIntervalEntity extends SimEntity {
         sb.append("\"update_num\":").append(updateCounter).append(",");
         sb.append("\"k\":").append(kCritical).append(",");
         
-        // Extract flow features
-        List<FlowFeatures> flowFeaturesList = extractFlowFeatures();
-        CFRRLLogger.debug(LOG_TAG, "Extracted " + flowFeaturesList.size() + " flows with features");
+        // Initialize all 132 flow slots with zeros
+        FlowFeatures[] allFlows = new FlowFeatures[NUM_FLOWS];
+        for (int flowIdx = 0; flowIdx < NUM_FLOWS; flowIdx++) {
+            int[] nodePair = getNodePairFromFlowIndex(flowIdx);
+            allFlows[flowIdx] = createEmptyFlowFeatures(flowIdx, nodePair[0], nodePair[1]);
+        }
         
-        // Log flow details
-        if (!flowFeaturesList.isEmpty()) {
-            CFRRLLogger.tableHeader(LOG_TAG, "FlowID", "Demand", "PathLen", "Bottleneck", "NumPaths");
-            for (FlowFeatures ff : flowFeaturesList) {
-                CFRRLLogger.tableRow(LOG_TAG, ff.flowId, 
-                                    String.format("%.0f", ff.demand),
-                                    ff.pathLength, 
-                                    String.format("%.0f", ff.bottleneckCap),
-                                    ff.numPaths);
+        // Populate active flows from channels
+        int activeCount = populateActiveFlows(allFlows);
+        CFRRLLogger.debug(LOG_TAG, "Active flows: " + activeCount + " / " + NUM_FLOWS);
+        
+        // Log active flow details
+        if (activeCount > 0) {
+            CFRRLLogger.tableHeader(LOG_TAG, "FlowID", "Src", "Dst", "Demand", "PathLen");
+            for (FlowFeatures ff : allFlows) {
+                if (ff.demand > 0) {
+                    CFRRLLogger.tableRow(LOG_TAG, ff.flowId, ff.srcNode, ff.dstNode,
+                                        String.format("%.0f", ff.demand), ff.pathLength);
+                }
             }
         }
         
-        // Flows JSON
+        // Serialize all 132 flows
         sb.append("\"flows\":[");
-        boolean first = true;
-        for (FlowFeatures ff : flowFeaturesList) {
-            if (!first) sb.append(",");
-            first = false;
+        for (int i = 0; i < NUM_FLOWS; i++) {
+            if (i > 0) sb.append(",");
+            FlowFeatures ff = allFlows[i];
             
             sb.append("{");
             sb.append("\"id\":").append(ff.flowId).append(",");
-            sb.append("\"src\":").append(ff.srcVm).append(",");
-            sb.append("\"dst\":").append(ff.dstVm).append(",");
+            sb.append("\"src\":").append(ff.srcNode).append(",");
+            sb.append("\"dst\":").append(ff.dstNode).append(",");
             sb.append("\"bw\":").append((long) ff.demand).append(",");
             sb.append("\"path_len\":").append(ff.pathLength).append(",");
             sb.append("\"bottleneck\":").append((long) ff.bottleneckCap).append(",");
             sb.append("\"num_paths\":").append(ff.numPaths).append(",");
             sb.append("\"features\":[");
-            sb.append(String.format("%.4f", ff.demand / maxDemandSeen)).append(",");
-            sb.append(String.format("%.4f", ff.numPaths / 4.0)).append(",");
-            sb.append(String.format("%.4f", ff.pathLength / 5.0)).append(",");
-            sb.append(String.format("%.4f", ff.bottleneckCap / maxCapacitySeen));
+            sb.append(String.format("%.6f", Math.min(ff.demand / maxDemandSeen, 1.0))).append(",");
+            sb.append(String.format("%.6f", Math.min(ff.numPaths / 4.0, 1.0))).append(",");
+            sb.append(String.format("%.6f", Math.min(ff.pathLength / 5.0, 1.0))).append(",");
+            sb.append(String.format("%.6f", Math.min(ff.bottleneckCap / maxCapacitySeen, 1.0)));
             sb.append("]}");
         }
         sb.append("],");
         
-        // Links JSON
+        // Add link utilization info
         sb.append("\"links\":[");
-        PhysicalTopology topo = nos.getPhysicalTopology();
+        Collection<Link> links = nos.getPhysicalTopology().getAllLinks();
         int linkCount = 0;
         double maxUtil = 0;
-        if (topo != null) {
-            Collection<Link> links = topo.getAllLinks();
-            first = true;
-            for (Link link : links) {
-                if (!first) sb.append(",");
-                first = false;
-                linkCount++;
-                
-                Node highNode = link.getHighOrder();
-                Node lowNode = link.getLowOrder();
-                
-                double upBw = link.getBw(lowNode);
-                double upFreeBw = link.getFreeBandwidth(lowNode);
-                double upUtil = upBw > 0 ? (upBw - upFreeBw) / upBw : 0;
-                int upChannels = link.getChannelCount(lowNode);
-                
-                double downBw = link.getBw(highNode);
-                double downFreeBw = link.getFreeBandwidth(highNode);
-                double downUtil = downBw > 0 ? (downBw - downFreeBw) / downBw : 0;
-                int downChannels = link.getChannelCount(highNode);
-                
-                double linkMaxUtil = Math.max(upUtil, downUtil);
-                if (linkMaxUtil > maxUtil) maxUtil = linkMaxUtil;
-                
-                sb.append("{");
-                sb.append("\"up_bw\":").append((long) upBw).append(",");
-                sb.append("\"down_bw\":").append((long) downBw).append(",");
-                sb.append("\"up_util\":").append(String.format("%.4f", upUtil)).append(",");
-                sb.append("\"down_util\":").append(String.format("%.4f", downUtil)).append(",");
-                sb.append("\"channels\":").append(upChannels + downChannels);
-                sb.append("}");
-            }
+        for (Link link : links) {
+            if (linkCount > 0) sb.append(",");
+            linkCount++;
+            
+            Node lowNode = link.getLowOrder();
+            Node highNode = link.getHighOrder();
+            
+            double upBw = link.getBw(lowNode);
+            double upFreeBw = link.getFreeBandwidth(lowNode);
+            double upUtil = upBw > 0 ? (upBw - upFreeBw) / upBw : 0;
+            
+            double downBw = link.getBw(highNode);
+            double downFreeBw = link.getFreeBandwidth(highNode);
+            double downUtil = downBw > 0 ? (downBw - downFreeBw) / downBw : 0;
+            
+            double linkMaxUtil = Math.max(upUtil, downUtil);
+            if (linkMaxUtil > maxUtil) maxUtil = linkMaxUtil;
+            
+            sb.append("{");
+            sb.append("\"up_util\":").append(String.format("%.4f", upUtil)).append(",");
+            sb.append("\"down_util\":").append(String.format("%.4f", downUtil));
+            sb.append("}");
         }
         sb.append("],");
         
-        CFRRLLogger.debug(LOG_TAG, "Links: " + linkCount + ", Max utilization: " + String.format("%.2f%%", maxUtil * 100));
+        CFRRLLogger.debug(LOG_TAG, "Links: " + linkCount + ", Max utilization: " + 
+                         String.format("%.2f%%", maxUtil * 100));
         
-        sb.append("\"total_flows\":").append(flowFeaturesList.size()).append(",");
+        sb.append("\"active_flows\":").append(activeCount).append(",");
+        sb.append("\"total_flows\":").append(NUM_FLOWS).append(",");
         sb.append("\"total_channels\":").append(nos.getChannelManager().getTotalChannelNum());
         sb.append("}");
         
         return sb.toString();
     }
 
-    private List<FlowFeatures> extractFlowFeatures() {
-        List<FlowFeatures> features = new ArrayList<>();
+    /**
+     * Create empty flow features for an inactive flow.
+     */
+    private FlowFeatures createEmptyFlowFeatures(int flowIdx, int srcNode, int dstNode) {
+        FlowFeatures ff = new FlowFeatures();
+        ff.flowId = flowIdx;
+        ff.srcNode = srcNode;
+        ff.dstNode = dstNode;
+        ff.demand = 0;
+        ff.pathLength = 0;
+        ff.bottleneckCap = 0;
+        ff.numPaths = 0;
+        return ff;
+    }
+
+    /**
+     * Populate active flows from current channels.
+     * Returns count of active flows.
+     */
+    private int populateActiveFlows(FlowFeatures[] allFlows) {
         ChannelManager cm = nos.getChannelManager();
-        
         Map<String, Integer> vmNameToId = NetworkOperatingSystem.getVmNameToIdMap();
         Set<Integer> processedFlows = new HashSet<>();
-        
-        CFRRLLogger.debug(LOG_TAG, "Known VMs: " + vmNameToId.size());
+        int activeCount = 0;
         
         for (Integer vmId : vmNameToId.values()) {
             if (vmId == null || vmId == -1) continue;
@@ -248,34 +361,51 @@ public class CFRRLIntervalEntity extends SimEntity {
             List<Channel> channels = cm.findAllChannels(vmId);
             
             for (Channel ch : channels) {
-                int flowId = ch.getChId();
-                if (flowId == -1) continue;
-                if (processedFlows.contains(flowId)) continue;
-                processedFlows.add(flowId);
+                int chFlowId = ch.getChId();
+                if (chFlowId == -1) continue;  // Skip default channels
+                if (processedFlows.contains(chFlowId)) continue;
+                processedFlows.add(chFlowId);
                 
-                FlowFeatures ff = new FlowFeatures();
-                ff.flowId = flowId;
-                ff.srcVm = ch.getSrcId();
-                ff.dstVm = ch.getDstId();
+                // Get node indices from VM IDs
+                int srcNode = getNodeIndexFromVmId(ch.getSrcId());
+                int dstNode = getNodeIndexFromVmId(ch.getDstId());
+                
+                if (srcNode < 0 || dstNode < 0 || srcNode == dstNode) {
+                    CFRRLLogger.warn(LOG_TAG, "Invalid node pair for channel: src=" + srcNode + ", dst=" + dstNode);
+                    continue;
+                }
+                
+                // Compute flow index
+                int flowIdx = computeFlowIndex(srcNode, dstNode);
+                
+                // Verify the flow ID matches what we expect
+                // Note: CloudSimSDN flowId from workload may differ from our computed index
+                // We use the computed index based on src/dst nodes
+                if (flowIdx < 0 || flowIdx >= NUM_FLOWS) {
+                    CFRRLLogger.warn(LOG_TAG, "Flow index out of range: " + flowIdx);
+                    continue;
+                }
+                
+                // Update flow features
+                FlowFeatures ff = allFlows[flowIdx];
                 ff.demand = ch.getRequestedBandwidth();
+                ff.pathLength = getPathLength(ch);
+                ff.bottleneckCap = getBottleneckCapacity(ch);
+                ff.numPaths = estimateNumPaths(srcNode, dstNode);
                 
+                // Update normalization constants
                 if (ff.demand > maxDemandSeen) {
                     maxDemandSeen = ff.demand;
                 }
-                
-                ff.pathLength = getPathLength(ch);
-                ff.bottleneckCap = getBottleneckCapacity(ch);
-                ff.numPaths = estimateNumPaths(ff.srcVm, ff.dstVm);
-                
                 if (ff.bottleneckCap > maxCapacitySeen) {
                     maxCapacitySeen = ff.bottleneckCap;
                 }
                 
-                features.add(ff);
+                activeCount++;
             }
         }
         
-        return features;
+        return activeCount;
     }
     
     private int getPathLength(Channel ch) {
@@ -296,22 +426,15 @@ public class CFRRLIntervalEntity extends SimEntity {
         }
     }
     
-    private int estimateNumPaths(int srcVm, int dstVm) {
+    private int estimateNumPaths(int srcNode, int dstNode) {
         try {
-            SDNHost srcHost = nos.findHost(srcVm);
-            SDNHost dstHost = nos.findHost(dstVm);
-            
-            if (srcHost == null || dstHost == null) return 1;
-            if (srcHost.equals(dstHost)) return 1;
-            
-            List<Link> candidates = srcHost.getRoute(dstHost);
-            if (candidates != null) {
-                return Math.max(1, candidates.size());
-            }
+            // Try to get actual path count from topology
+            // For now, use heuristic based on Abilene topology
+            // Most node pairs have 2-4 paths
+            return 2;  // Conservative default
         } catch (Exception e) {
-            // Ignore
+            return 2;
         }
-        return 2;
     }
 
     private Set<Integer> parseResponse(String response) {
@@ -341,7 +464,6 @@ public class CFRRLIntervalEntity extends SimEntity {
             }
             
             String[] items = arrayContent.split(",");
-            Map<String, Integer> flowNameToId = NetworkOperatingSystem.getFlowNameToIdMap();
             
             for (String item : items) {
                 item = item.trim().replace("\"", "");
@@ -349,16 +471,14 @@ public class CFRRLIntervalEntity extends SimEntity {
                 
                 try {
                     int flowId = Integer.parseInt(item);
-                    criticalFlows.add(flowId);
-                    CFRRLLogger.debug(LOG_TAG, "Parsed flow ID: " + flowId);
-                } catch (NumberFormatException e) {
-                    Integer flowId = flowNameToId.get(item);
-                    if (flowId != null && flowId != -1) {
+                    if (flowId >= 0 && flowId < NUM_FLOWS) {
                         criticalFlows.add(flowId);
-                        CFRRLLogger.debug(LOG_TAG, "Resolved flow name '" + item + "' to ID: " + flowId);
+                        CFRRLLogger.debug(LOG_TAG, "Parsed flow ID: " + flowId);
                     } else {
-                        CFRRLLogger.warn(LOG_TAG, "Unknown flow identifier: " + item);
+                        CFRRLLogger.warn(LOG_TAG, "Flow ID out of range: " + flowId);
                     }
+                } catch (NumberFormatException e) {
+                    CFRRLLogger.warn(LOG_TAG, "Could not parse flow ID: " + item);
                 }
             }
             
@@ -378,10 +498,13 @@ public class CFRRLIntervalEntity extends SimEntity {
         }
     }
 
+    /**
+     * Flow features data class.
+     */
     private static class FlowFeatures {
         int flowId;
-        int srcVm;
-        int dstVm;
+        int srcNode;
+        int dstNode;
         double demand;
         int pathLength;
         double bottleneckCap;

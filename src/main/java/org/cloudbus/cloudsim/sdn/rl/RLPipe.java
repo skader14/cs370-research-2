@@ -8,6 +8,8 @@ public class RLPipe {
     private Process pythonProcess;
     private BufferedWriter pythonWriter;
     private BufferedReader pythonReader;
+    private BufferedReader pythonErrorReader;  // Separate stderr reader
+    private Thread stderrThread;  // Thread to consume stderr
     private boolean isRunning = false;
 
     private final String pythonCommand;
@@ -28,7 +30,8 @@ public class RLPipe {
                 scriptPath
         );
 
-        pb.redirectErrorStream(true);
+        // DO NOT merge stderr into stdout - keep them separate!
+        pb.redirectErrorStream(false);
         pb.directory(new File("."));   // ensure root directory as working dir
 
         pythonProcess = pb.start();
@@ -36,6 +39,23 @@ public class RLPipe {
                 pythonProcess.getOutputStream(), StandardCharsets.UTF_8));
         pythonReader = new BufferedReader(new InputStreamReader(
                 pythonProcess.getInputStream(), StandardCharsets.UTF_8));
+        pythonErrorReader = new BufferedReader(new InputStreamReader(
+                pythonProcess.getErrorStream(), StandardCharsets.UTF_8));
+
+        // Start a thread to consume stderr and print it (prevents blocking)
+        stderrThread = new Thread(() -> {
+            try {
+                String line;
+                while ((line = pythonErrorReader.readLine()) != null) {
+                    // Print Python's log messages to Java's stderr
+                    System.err.println("[Python] " + line);
+                }
+            } catch (IOException e) {
+                // Process ended, ignore
+            }
+        }, "Python-stderr-reader");
+        stderrThread.setDaemon(true);
+        stderrThread.start();
 
         isRunning = true;
         System.out.println("[RLPipe] Started Python: " + pythonCommand + " " + scriptPath);

@@ -4,6 +4,8 @@
  * Licence:      GPL - http://www.gnu.org/copyleft/gpl.html
  *
  * Copyright (c) 2017, The University of Melbourne, Australia
+ * 
+ * MODIFIED FOR CFR-RL: Extracts flow IDs from names (flow_X -> X)
  */
 
 package org.cloudbus.cloudsim.sdn.parsers;
@@ -35,6 +37,10 @@ import com.google.common.collect.Multimap;
 /**
  * This class parses Virtual Topology (VMs, Network flows between VMs, and SFCs).
  * It loads Virtual Topology JSON file and creates relevant objects in the simulation.
+ * 
+ * MODIFIED FOR CFR-RL:
+ * - Extracts flow IDs from flow names (e.g., "flow_84" -> flowId = 84)
+ * - Falls back to auto-increment for other naming patterns
  * 
  * @author Jungmin Son
  * @since CloudSimSDN 1.0
@@ -205,7 +211,18 @@ public class VirtualTopologyParser {
 				flowId = -1;
 			}
 			else {
-				flowId = flowNumbers++;
+				// CFR-RL MODIFICATION: Try to extract flow ID from name first
+				flowId = extractFlowIdFromName(name);
+				
+				if (flowId == -1) {
+					// Fallback to auto-increment if name doesn't contain ID
+					flowId = flowNumbers++;
+				} else {
+					// Update flowNumbers to avoid collisions with future auto-assigned IDs
+					if (flowId >= flowNumbers) {
+						flowNumbers = flowId + 1;
+					}
+				}
 			}
 			
 			FlowConfig arc = new FlowConfig(srcId, dstId, flowId, bw, lat);
@@ -217,6 +234,41 @@ public class VirtualTopologyParser {
 			flowNameIdTable.put(name, flowId);
 		}
 		return flowNameIdTable;
+	}
+	
+	/**
+	 * CFR-RL ADDITION: Extract flow ID from name like "flow_84" -> 84
+	 * 
+	 * Supports patterns:
+	 * - flow_X (e.g., flow_84)
+	 * - flow-X (e.g., flow-84)
+	 * - flowX (e.g., flow84)
+	 * 
+	 * @param name Flow name
+	 * @return Flow ID if extractable, -1 otherwise
+	 */
+	private int extractFlowIdFromName(String name) {
+		if (name == null) return -1;
+		
+		// Pattern: flow_X or flow-X
+		if (name.startsWith("flow_") || name.startsWith("flow-")) {
+			try {
+				return Integer.parseInt(name.substring(5));
+			} catch (NumberFormatException e) {
+				return -1;
+			}
+		}
+		
+		// Pattern: flowX (no separator)
+		if (name.startsWith("flow") && name.length() > 4) {
+			try {
+				return Integer.parseInt(name.substring(4));
+			} catch (NumberFormatException e) {
+				return -1;
+			}
+		}
+		
+		return -1;
 	}
 	
 	private void parseSFCPolicies(JSONObject doc, Hashtable<String, Integer> vmNameIdTable, Hashtable<String, Integer> flowNameIdTable) {

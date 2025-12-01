@@ -13,6 +13,7 @@ import os
 import time
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+from dataclasses import dataclass
 
 # ==================== LOGGING SETUP ====================
 
@@ -65,6 +66,31 @@ def close_logging():
         log("INIT", f"Agent log ended at {datetime.now()}")
         log_file_handle.close()
         log_file_handle = None
+
+
+# ==================== TRAINING CONFIG (for model loading) ====================
+# This class must be defined for torch.load to unpickle the checkpoint
+
+@dataclass
+class TrainingConfig:
+    """Training configuration - must match the one used during training."""
+    k_critical: int = 8
+    hidden_dim: int = 64
+    
+    total_iterations: int = 5000
+    lr: float = 1e-3
+    entropy_coef: float = 0.02
+    grad_clip: float = 1.0
+    
+    temperature: float = 1.0
+    temperature_decay: float = 0.999
+    min_temperature: float = 0.3
+    
+    eval_interval: int = 500
+    eval_episodes: int = 50
+    log_interval: int = 100
+    
+    early_stop_patience: int = 3
 
 
 # ==================== PYTORCH SETUP ====================
