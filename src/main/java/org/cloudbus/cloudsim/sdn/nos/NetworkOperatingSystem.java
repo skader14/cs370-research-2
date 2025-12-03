@@ -121,6 +121,29 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 		
 		this.topology = new PhysicalTopologyInterCloud();
 	}
+
+	/**
+	 * Find the channel used for transmitting packets between two VMs.
+	 * 
+	 * WHY THIS EXISTS:
+	 * ----------------
+	 * SDNDatacenter.processPacketCompleted() needs to look up the Channel
+	 * that a packet was transmitted through, so it can extract:
+	 *   - Channel.getTotalLatency() -> propagation delay
+	 *   - Channel.getAllocatedBandwidth() -> for transmission delay calculation
+	 *   - Channel.getPathLength() -> number of hops (for logging)
+	 * 
+	 * This method simply delegates to channelManager.findChannel(), which is
+	 * already implemented (see ChannelManager.java line 108).
+	 * 
+	 * @param srcVmId   Source VM ID (from Packet.getOrigin())
+	 * @param dstVmId   Destination VM ID (from Packet.getDestination())
+	 * @param flowId    Flow ID (from Packet.getFlowId()), or -1 for default channel
+	 * @return The Channel used for this flow, or null if not found
+	 */
+	public Channel findChannel(int srcVmId, int dstVmId, int flowId) {
+		return channelManager.findChannel(srcVmId, dstVmId, flowId);
+	}
 	
 	public void setLinkSelectionPolicy(LinkSelectionPolicy linkSelectionPolicy) {
 		vnMapper.setLinkSelectionPolicy(linkSelectionPolicy);

@@ -36,6 +36,10 @@ import org.cloudbus.cloudsim.sdn.workload.Processing;
 import org.cloudbus.cloudsim.sdn.workload.Request;
 import org.cloudbus.cloudsim.sdn.workload.Transmission;
 
+import org.cloudbus.cloudsim.sdn.rl.LatencyCollector;
+import org.cloudbus.cloudsim.sdn.rl.CFRRLLogger;
+import org.cloudbus.cloudsim.sdn.virtualcomponents.Channel;
+
 /**
  * Extended class of Datacenter that supports processing SDN-specific events.
  * In addtion to the default Datacenter, it processes Request submission to VM,
@@ -55,6 +59,23 @@ public class SDNDatacenter extends Datacenter {
 	// For results
 	public static int migrationCompleted = 0;
 	public static int migrationAttempted = 0;
+
+	/**
+	 * Enable/disable latency recording.
+	 * Set to false for performance if latency metrics not needed.
+	 */
+	private boolean latencyRecordingEnabled = true;
+
+	/**
+	 * Counter for packets processed (for controlling log frequency).
+	 */
+	private long packetsProcessedCount = 0;
+
+	/**
+	 * Log every Nth packet to avoid excessive logging.
+	 * Set to 1 to log every packet, 100 to log every 100th, etc.
+	 */
+	private int latencyLogFrequency = 100;
 
 	
 	public SDNDatacenter(String name, DatacenterCharacteristics characteristics, VmAllocationPolicy vmAllocationPolicy, List<Storage> storageList, double schedulingInterval, NetworkOperatingSystem nos) throws Exception {
@@ -380,18 +401,158 @@ public class SDNDatacenter extends Datacenter {
 	}
 
 	
+	/**
+	 * Process a failed/timed-out packet.
+	 * 
+	 * MODIFICATION: Record failure for latency research.
+	 * 
+	 * WHY TRACK FAILURES:
+	 * -------------------
+	 * Packet failures indicate severe congestion. If MLU-optimized routing
+	 * causes more failures than latency-aware routing, that's important data.
+	 */
 	private void processPacketFailed(Packet pkt) {
-		Log.printLine(CloudSim.clock() + ": " + getName() + ".processPacketFailed(): Packet failed: "+pkt);		
-
-		pkt.setPacketFailedTime(CloudSim.clock());
-		Request req = pkt.getPayload();
+		Log.printLine(CloudSim.clock() + ": " + getName() + ".processPacketFailed(): Packet failed: " + pkt);
 		
+		pkt.setPacketFailedTime(CloudSim.clock());
+		
+		// =========================================================================
+		// RECORD FAILURE (NEW CODE)
+		// =========================================================================
+		if (latencyRecordingEnabled) {
+			try {
+				LatencyCollector.getInstance().recordPacketFailure(
+					pkt.getFlowId(),
+					pkt.hashCode(),
+					pkt.getStartTime(),
+					CloudSim.clock(),
+					pkt.getOrigin(),
+					pkt.getDestination()
+				);
+			} catch (Exception e) {
+				CFRRLLogger.error("SDNDatacenter", "Error recording failure: " + e.getMessage());
+			}
+		}
+		// =========================================================================
+		
+		// Original failure handling
+		Request req = pkt.getPayload();
+
 		Request lastReq = req.getTerminalRequest(); 
 		send(req.getUserId(), CloudSim.getMinTimeBetweenEvents(), CloudSimTagsSDN.REQUEST_FAILED, lastReq);
 	}
 
+	/**
+	 * Process a completed packet transmission.
+	 * 
+	 * MODIFICATION: Added latency recording for CFR-RL research.
+	 * 
+	 * WHY HERE:
+	 * ---------
+	 * This method is called exactly once when a packet finishes transmission.
+	 * At this point, we have:
+	 *   - pkt.getStartTime(): when packet entered the network
+	 *   - CloudSim.clock(): when packet finished (about to set as finishTime)
+	 *   - The packet's source, destination, and flowId
+	 * 
+	 * We use the flowId to look up the Channel, which gives us:
+	 *   - Channel.getTotalLatency(): propagation delay (physical)
+	 *   - Channel.getAllocatedBandwidth(): bandwidth for transmission delay calc
+	 *   - Channel.getPathLength(): number of hops
+	 * 
+	 * Then we compute:
+	 *   queuing_delay = serve_time - propagation_delay - transmission_delay
+	 * 
+	 * This queuing delay is what we're trying to minimize/measure!
+	 */
 	private void processPacketCompleted(Packet pkt) {
+		// Set the finish time (original code)
 		pkt.setPacketFinishTime(CloudSim.clock());
+		
+		// =========================================================================
+		// BEGIN LATENCY RECORDING (NEW CODE)
+		// =========================================================================
+		if (latencyRecordingEnabled) {
+			packetsProcessedCount++;
+			
+			try {
+				// Look up the channel this packet used
+				// nos.findChannel() delegates to channelManager.findChannel()
+				Channel channel = nos.findChannel(
+					pkt.getOrigin(),       // source VM ID
+					pkt.getDestination(),  // destination VM ID  
+					pkt.getFlowId()        // flow ID (-1 for default)
+				);
+				
+				if (channel != null) {
+					// Extract timing information
+					double startTime = pkt.getStartTime();
+					double finishTime = pkt.getFinishTime();
+					
+					// Extract channel properties for latency calculation
+					double propagationDelay = channel.getTotalLatency();
+					double allocatedBandwidth = channel.getAllocatedBandwidth();
+					int pathLength = channel.getPathLength();
+					
+					// Record to LatencyCollector
+					LatencyCollector.getInstance().recordPacketCompletion(
+						pkt.getFlowId(),
+						pkt.hashCode(),           // Use hash as unique packet ID
+						startTime,
+						finishTime,
+						propagationDelay,
+						pkt.getSize(),
+						allocatedBandwidth,
+						pathLength,
+						pkt.getOrigin(),
+						pkt.getDestination()
+					);
+					
+					// Periodic detailed logging (every Nth packet)
+					if (packetsProcessedCount % latencyLogFrequency == 0) {
+						double serveTime = finishTime - startTime;
+						double transmissionDelay = allocatedBandwidth > 0 ? 
+							pkt.getSize() / allocatedBandwidth : 0;
+						double queuingDelay = Math.max(0, 
+							serveTime - propagationDelay - transmissionDelay);
+						
+						CFRRLLogger.debug("SDNDatacenter", String.format(
+							"Pkt #%d: flow=%d, serve=%.4fs, prop=%.4fs, queue=%.4fs, path=%d",
+							packetsProcessedCount, pkt.getFlowId(),
+							serveTime, propagationDelay, queuingDelay, pathLength));
+					}
+					
+				} else {
+					// Channel not found - can happen for edge cases
+					// Still record with available info (propagation/bandwidth = 0)
+					CFRRLLogger.debug("SDNDatacenter", String.format(
+						"Channel not found for completed packet: flow=%d, %d->%d",
+						pkt.getFlowId(), pkt.getOrigin(), pkt.getDestination()));
+					
+					LatencyCollector.getInstance().recordPacketCompletion(
+						pkt.getFlowId(),
+						pkt.hashCode(),
+						pkt.getStartTime(),
+						pkt.getFinishTime(),
+						0,  // Unknown propagation delay
+						pkt.getSize(),
+						0,  // Unknown bandwidth
+						0,  // Unknown path length
+						pkt.getOrigin(),
+						pkt.getDestination()
+					);
+				}
+				
+			} catch (Exception e) {
+				// Don't let latency recording crash the simulation
+				CFRRLLogger.error("SDNDatacenter", "Error recording latency: " + e.getMessage());
+			}
+		}
+		// =========================================================================
+		// END LATENCY RECORDING
+		// =========================================================================
+		
+		// Process next activity (original code)
 		Request req = pkt.getPayload();
 		processNextActivity(req);
 	}
@@ -503,5 +664,27 @@ public class SDNDatacenter extends Datacenter {
 
 	public String toString() {
 		return "SDNDataCenter:(NOS="+nos.toString()+")";
+	}
+
+	/**
+	* Enable or disable latency recording at runtime.
+	*/
+	public void setLatencyRecordingEnabled(boolean enabled) {
+		this.latencyRecordingEnabled = enabled;
+		CFRRLLogger.info("SDNDatacenter", "Latency recording: " + (enabled ? "ENABLED" : "DISABLED"));
+	}
+
+	/**
+	 * Set logging frequency (1 = every packet, 100 = every 100th packet).
+	 */
+	public void setLatencyLogFrequency(int frequency) {
+		this.latencyLogFrequency = Math.max(1, frequency);
+	}
+
+	/**
+	 * Get count of packets processed.
+	 */
+	public long getPacketsProcessedCount() {
+		return packetsProcessedCount;
 	}
 }
