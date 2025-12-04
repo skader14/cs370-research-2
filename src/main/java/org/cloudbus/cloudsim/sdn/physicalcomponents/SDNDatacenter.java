@@ -470,30 +470,30 @@ public class SDNDatacenter extends Datacenter {
 		pkt.setPacketFinishTime(CloudSim.clock());
 		
 		// =========================================================================
-		// BEGIN LATENCY RECORDING (NEW CODE)
+		// BEGIN LATENCY RECORDING (FIXED VERSION)
+		// =========================================================================
+		// 
+		// FIX: Instead of calling findChannel() (which returns null because the
+		// channel was removed), we use the channel info that was stored on the
+		// packet in NetworkOperatingSystem.processCompletePackets().
+		//
+		// The channel info (propagation delay, bandwidth, path length) was copied
+		// to the packet BEFORE the channel was removed from channelTable.
 		// =========================================================================
 		if (latencyRecordingEnabled) {
 			packetsProcessedCount++;
 			
 			try {
-				// Look up the channel this packet used
-				// nos.findChannel() delegates to channelManager.findChannel()
-				Channel channel = nos.findChannel(
-					pkt.getOrigin(),       // source VM ID
-					pkt.getDestination(),  // destination VM ID  
-					pkt.getFlowId()        // flow ID (-1 for default)
-				);
+				// Get channel info from packet (stored before channel was removed)
+				double propagationDelay = pkt.getChannelTotalLatency();
+				double allocatedBandwidth = pkt.getChannelBandwidth();
+				int pathLength = pkt.getChannelPathLength();
 				
-				if (channel != null) {
-					// Extract timing information
-					double startTime = pkt.getStartTime();
-					double finishTime = pkt.getFinishTime();
-					
-					// Extract channel properties for latency calculation
-					double propagationDelay = channel.getTotalLatency();
-					double allocatedBandwidth = channel.getAllocatedBandwidth();
-					int pathLength = channel.getPathLength();
-					
+				double startTime = pkt.getStartTime();
+				double finishTime = pkt.getFinishTime();
+				
+				// Check if channel info was properly set (bandwidth > 0)
+				if (allocatedBandwidth > 0) {
 					// Record to LatencyCollector
 					LatencyCollector.getInstance().recordPacketCompletion(
 						pkt.getFlowId(),
@@ -511,29 +511,28 @@ public class SDNDatacenter extends Datacenter {
 					// Periodic detailed logging (every Nth packet)
 					if (packetsProcessedCount % latencyLogFrequency == 0) {
 						double serveTime = finishTime - startTime;
-						double transmissionDelay = allocatedBandwidth > 0 ? 
-							pkt.getSize() / allocatedBandwidth : 0;
+						double transmissionDelay = pkt.getSize() / allocatedBandwidth;
 						double queuingDelay = Math.max(0, 
 							serveTime - propagationDelay - transmissionDelay);
 						
 						CFRRLLogger.debug("SDNDatacenter", String.format(
-							"Pkt #%d: flow=%d, serve=%.4fs, prop=%.4fs, queue=%.4fs, path=%d",
+							"Pkt #%d: flow=%d, serve=%.4fs, prop=%.4fs, tx=%.4fs, queue=%.4fs, path=%d",
 							packetsProcessedCount, pkt.getFlowId(),
-							serveTime, propagationDelay, queuingDelay, pathLength));
+							serveTime, propagationDelay, transmissionDelay, queuingDelay, pathLength));
 					}
 					
 				} else {
-					// Channel not found - can happen for edge cases
-					// Still record with available info (propagation/bandwidth = 0)
-					CFRRLLogger.debug("SDNDatacenter", String.format(
-						"Channel not found for completed packet: flow=%d, %d->%d",
+					// Channel info wasn't set (shouldn't happen with the fix)
+					CFRRLLogger.warn("SDNDatacenter", String.format(
+						"No channel info stored on packet: flow=%d, %d->%d",
 						pkt.getFlowId(), pkt.getOrigin(), pkt.getDestination()));
 					
+					// Record with zeros (fallback)
 					LatencyCollector.getInstance().recordPacketCompletion(
 						pkt.getFlowId(),
 						pkt.hashCode(),
-						pkt.getStartTime(),
-						pkt.getFinishTime(),
+						startTime,
+						finishTime,
 						0,  // Unknown propagation delay
 						pkt.getSize(),
 						0,  // Unknown bandwidth

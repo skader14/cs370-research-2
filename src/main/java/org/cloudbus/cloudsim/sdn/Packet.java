@@ -130,4 +130,57 @@ public class Packet {
 	public long getPacketId() {
 		return this.id;
 	}
+
+	// ============================================================================
+	// ADD THESE TO Packet.java (org.cloudbus.cloudsim.sdn.Packet)
+	// Add fields near other private fields, and methods at end of class
+	// ============================================================================
+
+	// ============ Channel Info for Latency Recording ============
+	// These are set in NetworkOperatingSystem.processCompletePackets() 
+	// BEFORE the channel is removed from channelTable.
+	// This solves the "findChannel returns null" bug.
+
+	private double channelTotalLatency = 0;      // Propagation delay (seconds)
+	private double channelBandwidth = 0;          // Allocated bandwidth (bps)
+	private int channelPathLength = 0;            // Number of hops
+
+	/**
+	 * Store channel info on this packet before the channel is removed.
+	 * Called by NetworkOperatingSystem.processCompletePackets()
+	 * 
+	 * @param totalLatency  Channel's propagation delay (from getTotalLatency())
+	 * @param bandwidth     Channel's allocated bandwidth (from getAllocatedBandwidth())
+	 * @param pathLength    Number of hops in path (from getPathLength())
+	 */
+	public void setChannelInfo(double totalLatency, double bandwidth, int pathLength) {
+		this.channelTotalLatency = totalLatency;
+		this.channelBandwidth = bandwidth;
+		this.channelPathLength = pathLength;
+	}
+
+	/**
+	 * Get the propagation delay that was stored before channel was removed.
+	 * @return Propagation delay in seconds, or 0 if not set
+	 */
+	public double getChannelTotalLatency() {
+		return channelTotalLatency;
+	}
+
+	/**
+	 * Get the bandwidth that was stored before channel was removed.
+	 * @return Bandwidth in bps, or 0 if not set
+	 */
+	public double getChannelBandwidth() {
+		return channelBandwidth;
+	}
+
+	/**
+	 * Get the path length that was stored before channel was removed.
+	 * @return Number of hops, or 0 if not set
+	 */
+	public int getChannelPathLength() {
+		return channelPathLength;
+	}
+
 }

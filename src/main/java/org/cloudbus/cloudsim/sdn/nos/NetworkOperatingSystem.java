@@ -366,6 +366,20 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 		for(Channel ch:channels) {
 			for (Transmission tr:ch.getArrivedPackets()){
 				Packet pkt = tr.getPacket();
+				
+				// =========================================================
+				// FIX: Store channel info on packet BEFORE channel is removed!
+				// After this method returns, ChannelManager.updateChannel() 
+				// will remove the channel from channelTable. By storing the 
+				// info here, SDNDatacenter.processPacketCompleted() can access
+				// it later via pkt.getChannelXxx() methods.
+				// =========================================================
+				pkt.setChannelInfo(
+					ch.getTotalLatency(),       // Propagation delay
+					ch.getAllocatedBandwidth(), // Bandwidth for transmission delay calc
+					ch.getPathLength()          // Number of hops (for logging)
+				);
+				
 				int vmId = pkt.getDestination(); 
 				Datacenter dc = SDNDatacenter.findDatacenterGlobal(vmId);
 				
@@ -375,6 +389,14 @@ public abstract class NetworkOperatingSystem extends SimEntity {
 			
 			for (Transmission tr:ch.getFailedPackets()){
 				Packet pkt = tr.getPacket();
+				
+				// Also store channel info for failed packets
+				pkt.setChannelInfo(
+					ch.getTotalLatency(),
+					ch.getAllocatedBandwidth(),
+					ch.getPathLength()
+				);
+				
 				sendPacketFailedEvent(this.datacenter, pkt, ch.getTotalLatency());
 			}
 		}

@@ -4,7 +4,7 @@ CFR-RL Agent for CloudSimSDN Integration
 
 With comprehensive logging for debugging.
 All logs go to stderr (stdout is reserved for JSON protocol).
-Also writes to cfrrl_agent.log file.
+Also writes to outputs/cfrrl_agent.log file.
 """
 
 import sys
@@ -21,14 +21,32 @@ from dataclasses import dataclass
 
 # Uncomment ONE of these lines to select which model to use:
 
-# MODEL_PATH = "best_abilene_lw0.0.pt"   # MLU-only (original CFR-RL)
-MODEL_PATH = "best_abilene_lw0.3.pt"   # Latency-aware (latency_weight=0.3)
+MODEL_PATH = "best_abilene_lw0.0.pt"   # MLU-only (original CFR-RL)
+# MODEL_PATH = "best_abilene_lw0.3.pt"   # Latency-aware (latency_weight=0.3)
 # MODEL_PATH = "best_abilene_v2.pt"      # Legacy model (if you have one)
 
-# Log file name (change this when switching models for clearer logs)
-# LOG_FILE = "cfrrl_agent_lw0.0.log"      # Match with model above
-LOG_FILE = "cfrrl_agent_lw0.3.log"
-# LOG_FILE = "cfrrl_agent.log"
+# Experiment name (used for log file naming)
+EXPERIMENT_NAME = "mlu_only"            # Change when switching models
+# EXPERIMENT_NAME = "latency_aware"
+
+# ==============================================================================
+# OUTPUT CONFIGURATION - All outputs go to 'outputs' folder
+# ==============================================================================
+
+OUTPUT_DIR = "outputs"
+
+def get_output_path(filename: str) -> str:
+    """Get full path for output file in outputs directory."""
+    return os.path.join(OUTPUT_DIR, filename)
+
+def ensure_output_dir():
+    """Create outputs directory if it doesn't exist."""
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
+        print(f"[Agent] Created output directory: {OUTPUT_DIR}", file=sys.stderr)
+
+# Derived from experiment name
+LOG_FILE = f"cfrrl_agent_{EXPERIMENT_NAME}.log"
 
 # ==============================================================================
 # END CONFIGURATION
@@ -40,11 +58,14 @@ log_file_handle = None
 def init_logging():
     """Initialize logging to file."""
     global log_file_handle
+    ensure_output_dir()
+    log_path = get_output_path(LOG_FILE)
     try:
-        log_file_handle = open(LOG_FILE, 'w')
+        log_file_handle = open(log_path, 'w')
         log("INIT", f"Agent log started at {datetime.now()}")
-        log("INIT", f"Log file: {os.path.abspath(LOG_FILE)}")
+        log("INIT", f"Log file: {os.path.abspath(log_path)}")
         log("INIT", f"Model: {MODEL_PATH}")
+        log("INIT", f"Experiment: {EXPERIMENT_NAME}")
         log("INIT", f"Python version: {sys.version}")
         log("INIT", f"Working directory: {os.getcwd()}")
     except Exception as e:
@@ -119,10 +140,8 @@ try:
     import torch
     import torch.nn as nn
     TORCH_AVAILABLE = True
-    log("INIT", "PyTorch available: YES")
 except ImportError:
     TORCH_AVAILABLE = False
-    log("INIT", "PyTorch available: NO - will use Top-K fallback", "WARN")
 
 
 # ==================== MODEL DEFINITION ====================
@@ -174,10 +193,11 @@ class CFRRLAgent:
         self.model = None
         self.model_num_flows = 132
         self.update_count = 0
-        self.model_latency_weight = None  # Will be loaded from checkpoint if available
+        self.model_latency_weight = None
         
         log("Agent", "Initializing CFR-RL Agent")
         log("Agent", f"Model path: {model_path}")
+        log("Agent", f"Experiment: {EXPERIMENT_NAME}")
         
         if TORCH_AVAILABLE:
             self._load_model(model_path)
@@ -249,7 +269,7 @@ class CFRRLAgent:
         
         # Log flow details
         log("Agent", "Flow details:", "DEBUG")
-        for i, flow in enumerate(flows[:10]):  # Limit to first 10
+        for i, flow in enumerate(flows[:10]):
             flow_id = flow.get('id', 'N/A')
             bw = flow.get('bw', 0)
             features = flow.get('features', [])
@@ -272,6 +292,7 @@ class CFRRLAgent:
                     'k': k,
                     'method': 'cfr_rl',
                     'model': MODEL_PATH,
+                    'experiment': EXPERIMENT_NAME,
                     'latency_weight': self.model_latency_weight,
                     'update_num': self.update_count
                 }
@@ -348,7 +369,7 @@ class CFRRLAgent:
         # Log scores
         log("Agent", "Flow scores:", "DEBUG")
         for i, (fid, score) in enumerate(zip(flow_ids, scores)):
-            if i < 10:  # Limit logging
+            if i < 10:
                 log("Agent", f"  Flow {fid}: score={score:.4f}", "DEBUG")
         
         # Select top K
@@ -382,7 +403,9 @@ def main():
     log("MAIN", "=" * 60)
     log("MAIN", "CFR-RL AGENT STARTED")
     log("MAIN", "=" * 60)
-    log("MAIN", f"Using model: {MODEL_PATH}")
+    log("MAIN", f"Experiment: {EXPERIMENT_NAME}")
+    log("MAIN", f"Model: {MODEL_PATH}")
+    log("MAIN", f"Output dir: {OUTPUT_DIR}")
     log("MAIN", "Protocol: Read JSON from stdin, write JSON to stdout")
     log("MAIN", "Shutdown: Send {\"shutdown\": true}")
     
