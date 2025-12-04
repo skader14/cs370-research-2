@@ -15,9 +15,26 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
-# ==================== LOGGING SETUP ====================
+# ==============================================================================
+# MODEL CONFIGURATION - EDIT THIS SECTION TO SWITCH MODELS
+# ==============================================================================
 
-LOG_FILE = "cfrrl_agent.log"
+# Uncomment ONE of these lines to select which model to use:
+
+# MODEL_PATH = "best_abilene_lw0.0.pt"   # MLU-only (original CFR-RL)
+MODEL_PATH = "best_abilene_lw0.3.pt"   # Latency-aware (latency_weight=0.3)
+# MODEL_PATH = "best_abilene_v2.pt"      # Legacy model (if you have one)
+
+# Log file name (change this when switching models for clearer logs)
+# LOG_FILE = "cfrrl_agent_lw0.0.log"      # Match with model above
+LOG_FILE = "cfrrl_agent_lw0.3.log"
+# LOG_FILE = "cfrrl_agent.log"
+
+# ==============================================================================
+# END CONFIGURATION
+# ==============================================================================
+
+
 log_file_handle = None
 
 def init_logging():
@@ -27,6 +44,7 @@ def init_logging():
         log_file_handle = open(LOG_FILE, 'w')
         log("INIT", f"Agent log started at {datetime.now()}")
         log("INIT", f"Log file: {os.path.abspath(LOG_FILE)}")
+        log("INIT", f"Model: {MODEL_PATH}")
         log("INIT", f"Python version: {sys.version}")
         log("INIT", f"Working directory: {os.getcwd()}")
     except Exception as e:
@@ -69,7 +87,6 @@ def close_logging():
 
 
 # ==================== TRAINING CONFIG (for model loading) ====================
-# This class must be defined for torch.load to unpickle the checkpoint
 
 @dataclass
 class TrainingConfig:
@@ -91,6 +108,9 @@ class TrainingConfig:
     log_interval: int = 100
     
     early_stop_patience: int = 3
+    
+    # New field for latency-aware models
+    latency_weight: float = 0.0
 
 
 # ==================== PYTORCH SETUP ====================
@@ -150,10 +170,11 @@ if TORCH_AVAILABLE:
 class CFRRLAgent:
     """Agent that uses trained CFR-RL model to select critical flows."""
     
-    def __init__(self, model_path: str = "best_abilene_v2.pt"):
+    def __init__(self, model_path: str = MODEL_PATH):
         self.model = None
         self.model_num_flows = 132
         self.update_count = 0
+        self.model_latency_weight = None  # Will be loaded from checkpoint if available
         
         log("Agent", "Initializing CFR-RL Agent")
         log("Agent", f"Model path: {model_path}")
@@ -168,9 +189,8 @@ class CFRRLAgent:
         paths_to_try = [
             model_path,
             os.path.join(os.path.dirname(__file__), model_path),
-            os.path.join(os.path.dirname(__file__), "best_abilene_v2.pt"),
-            "RL/best_abilene_v2.pt",
-            "../best_abilene_v2.pt",
+            os.path.join("RL", model_path),
+            os.path.join("..", model_path),
         ]
         
         log("Agent", f"Searching for model in {len(paths_to_try)} locations...")
@@ -184,9 +204,19 @@ class CFRRLAgent:
                 try:
                     log("Agent", f"Loading model from: {abs_path}")
                     checkpoint = torch.load(path, map_location='cpu', weights_only=False)
+                    
+                    # Load model architecture
                     self.model = StablePointwisePolicy(num_flows=132, hidden_dim=64)
                     self.model.load_state_dict(checkpoint['policy_state_dict'])
                     self.model.eval()
+                    
+                    # Check for latency_weight in checkpoint
+                    if 'latency_weight' in checkpoint:
+                        self.model_latency_weight = checkpoint['latency_weight']
+                        log("Agent", f"Model latency_weight: {self.model_latency_weight}")
+                    else:
+                        log("Agent", "Model latency_weight: not saved (legacy model)")
+                    
                     log("Agent", "Model loaded successfully!")
                     log("Agent", f"Model num_flows: {self.model.num_flows}")
                     return
@@ -241,6 +271,8 @@ class CFRRLAgent:
                     'critical_flows': critical_ids,
                     'k': k,
                     'method': 'cfr_rl',
+                    'model': MODEL_PATH,
+                    'latency_weight': self.model_latency_weight,
                     'update_num': self.update_count
                 }
             except Exception as e:
@@ -350,6 +382,7 @@ def main():
     log("MAIN", "=" * 60)
     log("MAIN", "CFR-RL AGENT STARTED")
     log("MAIN", "=" * 60)
+    log("MAIN", f"Using model: {MODEL_PATH}")
     log("MAIN", "Protocol: Read JSON from stdin, write JSON to stdout")
     log("MAIN", "Shutdown: Send {\"shutdown\": true}")
     

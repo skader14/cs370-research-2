@@ -504,7 +504,7 @@ class AbileneRLTrainerLatencyAware:
                     avg_topk = np.mean([m['util_top_k'] for m in recent])
                     avg_entropy = np.mean([m['entropy'] for m in recent])
                     avg_overlap = np.mean([m['overlap'] for m in recent])
-                    temp = metrics['temperature']
+                    temp = self.current_temperature
                     
                     wins = sum(1 for m in recent if m['util_policy'] <= m['util_top_k'] * 1.01)
                     win_rate = wins / len(recent) * 100
@@ -540,7 +540,7 @@ class AbileneRLTrainerLatencyAware:
     
     def load(self, path: str):
         """Load model checkpoint."""
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, weights_only=False)
         self.policy.load_state_dict(checkpoint['policy_state_dict'])
         return checkpoint
 
@@ -615,17 +615,21 @@ def main():
         trainer._print_eval(results_before, 0)
         
         trainer.train()
-        
-        try:
-            trainer.load(f"best_abilene_lw{args.latency_weight}.pt")
-        except:
-            pass
-        
-        print("\n" + "="*60)
-        print("FINAL EVALUATION")
-        print("="*60)
-        results_after = trainer.evaluate(n_episodes=100)
-        trainer._print_eval(results_after, -1)
+
+    # Load best model for final evaluation
+    model_path = f"best_abilene_lw{args.latency_weight}.pt"
+    try:
+        trainer.load(model_path)
+        print(f"\nLoaded best model from {model_path}")
+    except Exception as e:
+        print(f"\nWARNING: Could not load best model: {e}")
+        print("Using final training state instead")
+
+    print("\n" + "="*60)
+    print("FINAL EVALUATION")
+    print("="*60)
+    results_after = trainer.evaluate(n_episodes=100)
+    trainer._print_eval(results_after, -1)
 
 
 if __name__ == "__main__":
