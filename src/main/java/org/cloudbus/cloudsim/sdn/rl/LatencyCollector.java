@@ -183,7 +183,7 @@ public class LatencyCollector {
         // =====================================================================
         
         FlowStats fs = flowStatsMap.computeIfAbsent(flowId, k -> new FlowStats(flowId));
-        fs.addPacket(queuingDelay, serveTime);
+        fs.addPacket(queuingDelay, serveTime, packetSize);
         
         // =====================================================================
         // WRITE TO CSV (if enabled)
@@ -222,6 +222,10 @@ public class LatencyCollector {
             int dstNode) {
         
         totalPacketsFailed++;
+        
+        // Track per-flow drops
+        FlowStats fs = flowStatsMap.computeIfAbsent(flowId, k -> new FlowStats(flowId));
+        fs.addDroppedPacket();
         
         CFRRLLogger.warn("LatencyCollector", String.format(
             "Packet FAILED: flow=%d, src=%d->dst=%d, waited=%.4fs",
@@ -453,22 +457,212 @@ public class LatencyCollector {
     /** Per-flow statistics. */
     public static class FlowStats {
         public final int flowId;
+        
+        // Packet counts
         public int packetCount = 0;
+        public int droppedCount = 0;
+        
+        // Queuing delay stats
         public double queuingDelaySum = 0;
         public double maxQueuingDelay = 0;
+        public double minQueuingDelay = Double.MAX_VALUE;
+        public List<Double> queuingDelays = new ArrayList<>();  // For percentiles
+        
+        // Serve time stats
+        public double serveTimeSum = 0;
+        public double maxServeTime = 0;
+        
+        // Byte tracking
+        public long totalBytes = 0;
         
         public FlowStats(int flowId) {
             this.flowId = flowId;
         }
         
-        public void addPacket(double queuingDelay, double serveTime) {
+        public void addPacket(double queuingDelay, double serveTime, long packetSize) {
             packetCount++;
             queuingDelaySum += queuingDelay;
             maxQueuingDelay = Math.max(maxQueuingDelay, queuingDelay);
+            minQueuingDelay = Math.min(minQueuingDelay, queuingDelay);
+            queuingDelays.add(queuingDelay);
+            serveTimeSum += serveTime;
+            maxServeTime = Math.max(maxServeTime, serveTime);
+            totalBytes += packetSize;
+        }
+        
+        // Legacy method for compatibility
+        public void addPacket(double queuingDelay, double serveTime) {
+            addPacket(queuingDelay, serveTime, 0);
+        }
+        
+        public void addDroppedPacket() {
+            droppedCount++;
         }
         
         public double getAvgQueuingDelay() {
             return packetCount > 0 ? queuingDelaySum / packetCount : 0;
         }
+        
+        public double getAvgServeTime() {
+            return packetCount > 0 ? serveTimeSum / packetCount : 0;
+        }
+        
+        public double getDropRate() {
+            int total = packetCount + droppedCount;
+            return total > 0 ? (double) droppedCount / total : 0;
+        }
+        
+        public double getP95QueuingDelay() {
+            if (queuingDelays.isEmpty()) return 0;
+            List<Double> sorted = new ArrayList<>(queuingDelays);
+            Collections.sort(sorted);
+            int idx = Math.min(sorted.size() - 1, (int)(sorted.size() * 0.95));
+            return sorted.get(idx);
+        }
+        
+        /**
+         * Export as map for JSON/Python consumption
+         */
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new HashMap<>();
+            map.put("flow_id", flowId);
+            map.put("packet_count", packetCount);
+            map.put("dropped_count", droppedCount);
+            map.put("drop_rate", getDropRate());
+            map.put("mean_queuing", getAvgQueuingDelay());
+            map.put("max_queuing", maxQueuingDelay);
+            map.put("min_queuing", minQueuingDelay == Double.MAX_VALUE ? 0 : minQueuingDelay);
+            map.put("p95_queuing", getP95QueuingDelay());
+            map.put("mean_serve_time", getAvgServeTime());
+            map.put("max_serve_time", maxServeTime);
+            map.put("total_bytes", totalBytes);
+            return map;
+        }
     }
+
+    /**
+     * Generate flow summary CSV for Python training.
+     * Each row is one flow's statistics for this episode.
+     */
+    public synchronized void exportFlowSummary(String filename) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filename))) {
+            // Header
+            writer.println("flow_id,packet_count,dropped_count,drop_rate," +
+                        "mean_queuing,max_queuing,min_queuing,p95_queuing," +
+                        "mean_serve_time,max_serve_time,total_bytes");
+            
+            // Data rows - one per flow
+            for (FlowStats fs : flowStatsMap.values()) {
+                writer.printf("%d,%d,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%d%n",
+                    fs.flowId,
+                    fs.packetCount,
+                    fs.droppedCount,
+                    fs.getDropRate(),
+                    fs.getAvgQueuingDelay(),
+                    fs.maxQueuingDelay,
+                    fs.minQueuingDelay == Double.MAX_VALUE ? 0 : fs.minQueuingDelay,
+                    fs.getP95QueuingDelay(),
+                    fs.getAvgServeTime(),
+                    fs.maxServeTime,
+                    fs.totalBytes
+                );
+            }
+            
+            CFRRLLogger.info("LatencyCollector", "Exported flow summary to " + filename);
+            
+        } catch (IOException e) {
+            CFRRLLogger.error("LatencyCollector", "Failed to export flow summary: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get flow statistics as a map (for JSON export or direct Python access).
+     * Key = flow_id, Value = map of statistics
+     */
+    public synchronized Map<Integer, Map<String, Object>> getFlowSummaryMap() {
+        Map<Integer, Map<String, Object>> result = new HashMap<>();
+        for (FlowStats fs : flowStatsMap.values()) {
+            result.put(fs.flowId, fs.toMap());
+        }
+        return result;
+    }
+
+    /**
+     * Generate episode summary JSON for Python training.
+     * Contains aggregate metrics for the entire episode.
+     */
+    public synchronized String generateEpisodeSummaryJson() {
+        GlobalStats global = getGlobalStats();
+        
+        // Calculate additional metrics
+        double totalQueuingSum = 0;
+        double maxQueuingAcrossFlows = 0;
+        int totalDropped = 0;
+        List<Double> allQueuingDelays = new ArrayList<>();
+        
+        for (FlowStats fs : flowStatsMap.values()) {
+            totalQueuingSum += fs.queuingDelaySum;
+            maxQueuingAcrossFlows = Math.max(maxQueuingAcrossFlows, fs.maxQueuingDelay);
+            totalDropped += fs.droppedCount;
+            allQueuingDelays.addAll(fs.queuingDelays);
+        }
+        
+        // Calculate percentiles
+        double p50 = 0, p95 = 0, p99 = 0;
+        if (!allQueuingDelays.isEmpty()) {
+            Collections.sort(allQueuingDelays);
+            int n = allQueuingDelays.size();
+            p50 = allQueuingDelays.get(n / 2);
+            p95 = allQueuingDelays.get(Math.min(n - 1, (int)(n * 0.95)));
+            p99 = allQueuingDelays.get(Math.min(n - 1, (int)(n * 0.99)));
+        }
+        
+        int totalPackets = (int)(global.totalPacketsCompleted + totalDropped);
+        double dropRate = totalPackets > 0 ? (double) totalDropped / totalPackets : 0;
+        
+        // Build JSON
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\n");
+        sb.append(String.format("  \"total_packets\": %d,\n", global.totalPacketsCompleted));
+        sb.append(String.format("  \"dropped_packets\": %d,\n", totalDropped));
+        sb.append(String.format("  \"drop_rate\": %.6f,\n", dropRate));
+        sb.append(String.format("  \"mean_queuing_ms\": %.4f,\n", global.globalAvgQueuingDelay * 1000));
+        sb.append(String.format("  \"max_queuing_ms\": %.4f,\n", maxQueuingAcrossFlows * 1000));
+        sb.append(String.format("  \"p50_queuing_ms\": %.4f,\n", p50 * 1000));
+        sb.append(String.format("  \"p95_queuing_ms\": %.4f,\n", p95 * 1000));
+        sb.append(String.format("  \"p99_queuing_ms\": %.4f,\n", p99 * 1000));
+        sb.append(String.format("  \"num_flows_active\": %d,\n", flowStatsMap.size()));
+        sb.append(String.format("  \"num_intervals\": %d\n", global.numIntervals));
+        sb.append("}");
+        
+        return sb.toString();
+    }
+
+    /**
+     * Export episode summary to JSON file.
+     */
+    public synchronized void exportEpisodeSummary(String filename) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filename))) {
+            writer.print(generateEpisodeSummaryJson());
+            CFRRLLogger.info("LatencyCollector", "Exported episode summary to " + filename);
+        } catch (IOException e) {
+            CFRRLLogger.error("LatencyCollector", "Failed to export episode summary: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get statistics for a specific flow (for feature computation).
+     * Returns null if flow has no recorded packets.
+     */
+    public synchronized FlowStats getFlowStatsById(int flowId) {
+        return flowStatsMap.get(flowId);
+    }
+
+    /**
+     * Get list of all flow IDs that had traffic this episode.
+     */
+    public synchronized Set<Integer> getActiveFlowIds() {
+        return new HashSet<>(flowStatsMap.keySet());
+    }
+
 }

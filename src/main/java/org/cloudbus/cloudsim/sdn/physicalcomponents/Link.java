@@ -15,6 +15,9 @@ import org.cloudbus.cloudsim.sdn.LogWriter;
 import org.cloudbus.cloudsim.sdn.monitor.MonitoringValues;
 import org.cloudbus.cloudsim.sdn.virtualcomponents.Channel;
 
+import org.cloudbus.cloudsim.sdn.rl.LinkStatsCollector;
+
+
 /**
  * This is physical link between hosts and switches to build physical topology.
  * Links have latency and bandwidth.
@@ -263,18 +266,44 @@ public class Link {
 	
 	public double updateMonitor(double logTime, double timeUnit) {
 		long capacity = (long) (this.getBw() * timeUnit);
+		
+		// Calculate utilization for uplink (lowOrder -> highOrder)
 		double utilization1 = (double)monitoringProcessedBytesPerUnitUp / capacity;
 		mvUp.add(utilization1, logTime);
+		long bytesUp = monitoringProcessedBytesPerUnitUp;
 		monitoringProcessedBytesPerUnitUp = 0;
 		
+		// Original logging (per-node) - keep for backwards compatibility
 		LogWriter log = LogWriter.getLogger("link_utilization_up.csv");
 		log.printLine(this.lowOrder+","+logTime+","+utilization1);
 		
+		// NEW: Record to LinkStatsCollector with proper link ID
+		LinkStatsCollector.getInstance().recordLinkUtilization(
+			this.lowOrder.toString(),   // Source node
+			this.highOrder.toString(),  // Destination node
+			utilization1,               // Utilization [0,1]
+			logTime,                    // Timestamp
+			bytesUp                     // Bytes transferred
+		);
+		
+		// Calculate utilization for downlink (highOrder -> lowOrder)
 		double utilization2 = (double)monitoringProcessedBytesPerUnitDown / capacity;
 		mvDown.add(utilization2, logTime);
+		long bytesDown = monitoringProcessedBytesPerUnitDown;
 		monitoringProcessedBytesPerUnitDown = 0;
+		
+		// Original logging (per-node) - keep for backwards compatibility
 		LogWriter logDown = LogWriter.getLogger("link_utilization_down.csv");
-		logDown.printLine(this.highOrder+","+logTime+","+utilization2);		
+		logDown.printLine(this.highOrder+","+logTime+","+utilization2);
+		
+		// NEW: Record to LinkStatsCollector with proper link ID (reverse direction)
+		LinkStatsCollector.getInstance().recordLinkUtilization(
+			this.highOrder.toString(),  // Source node
+			this.lowOrder.toString(),   // Destination node
+			utilization2,               // Utilization [0,1]
+			logTime,                    // Timestamp
+			bytesDown                   // Bytes transferred
+		);
 		
 		return Double.max(utilization1, utilization2);
 	}
@@ -293,4 +322,32 @@ public class Link {
 			this.monitoringProcessedBytesPerUnitDown += processedBytes;
 		
 	}
+
+	/**
+	 * Get a unique identifier for this link in the specified direction
+	 * @param from The source node (determines direction)
+	 * @return String like "Seattle->Sunnyvale"
+	 */
+	public String getLinkId(Node from) {
+		if (isUplink(from)) {
+			return lowOrder.toString() + "->" + highOrder.toString();
+		} else {
+			return highOrder.toString() + "->" + lowOrder.toString();
+		}
+	}
+
+	/**
+	 * Get link ID for uplink direction (lowOrder -> highOrder)
+	 */
+	public String getUplinkId() {
+		return lowOrder.toString() + "->" + highOrder.toString();
+	}
+
+	/**
+	 * Get link ID for downlink direction (highOrder -> lowOrder)
+	 */
+	public String getDownlinkId() {
+		return highOrder.toString() + "->" + lowOrder.toString();
+	}
+
 }
