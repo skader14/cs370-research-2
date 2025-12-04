@@ -70,7 +70,7 @@ public class CFRRLExampleLatency {
     protected static String physicalFile = "dataset-abilene/abilene-physical.json";
     protected static String virtualFile  = "dataset-abilene/abilene-virtual.json";
     protected static String[] workloadFiles = {
-        "dataset-abilene/abilene-workload.csv"
+        "dataset-abilene/abilene-workload-heavy.csv"
     };
     
     // Simulation state

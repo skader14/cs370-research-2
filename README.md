@@ -3,6 +3,12 @@ Using RL folder, files fat_tree_/abilene_: lp_solver, topology, traffic_gen, and
 
 Run mvn exec:java "-Dexec.mainClass=org.cloudbus.cloudsim.sdn.example.CFRRLExample"
 
+Latency Work: Change the model path and experiment name in agent.py
+Change the experienment name and other stuff in cfrrlexamplelatency
+then run:  mvn exec:java "-Dexec.mainClass=org.cloudbus.cloudsim.sdn.example.CFRRLExampleLatency"
+
+
+
 to run the CFRRL version. Still need to check it against a normal version and compare stats.
 
 
