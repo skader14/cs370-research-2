@@ -21,13 +21,13 @@ from dataclasses import dataclass
 
 # Uncomment ONE of these lines to select which model to use:
 
-MODEL_PATH = "best_abilene_lw0.0.pt"   # MLU-only (original CFR-RL)
-# MODEL_PATH = "best_abilene_lw0.3.pt"   # Latency-aware (latency_weight=0.3)
+# MODEL_PATH = "best_abilene_lw0.0.pt"   # MLU-only (original CFR-RL)
+MODEL_PATH = "best_abilene_lw0.3.pt"   # Latency-aware (latency_weight=0.3)
 # MODEL_PATH = "best_abilene_v2.pt"      # Legacy model (if you have one)
 
 # Experiment name (used for log file naming)
-EXPERIMENT_NAME = "mlu_only"            # Change when switching models
-# EXPERIMENT_NAME = "latency_aware"
+# EXPERIMENT_NAME = "mlu_only"            # Change when switching models
+EXPERIMENT_NAME = "latency_aware"
 
 # ==============================================================================
 # OUTPUT CONFIGURATION - All outputs go to 'outputs' folder

@@ -48,6 +48,9 @@ public class CFRRLExampleLatency {
      */
     // private static final String EXPERIMENT_NAME = "mlu_only";  // or "latency_aware"
     private static final String EXPERIMENT_NAME = "latency_aware";  // or "latency_aware"
+
+    private static final String OUTPUT_DIR = "outputs";
+
     
     // Output files will be named:
     //   cfrrl_debug_{EXPERIMENT_NAME}.log
@@ -74,12 +77,25 @@ public class CFRRLExampleLatency {
     protected static NetworkOperatingSystem nos;
     protected static PowerUtilizationMaxHostInterface maxHostHandler = null;
     protected static RLPipe pipe = null;
+
+    /**
+     * Ensure output directory exists
+     */
+    private static void ensureOutputDir() {
+        java.io.File dir = new java.io.File(OUTPUT_DIR);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+    }
     
     public static void main(String[] args) {
         
+        // Ensure output directory exists
+        ensureOutputDir();
+
         // Derived file names from experiment name
-        String logFile = "cfrrl_debug_" + EXPERIMENT_NAME + ".log";
-        String latencyCsvFile = "latency_results_" + EXPERIMENT_NAME + ".csv";
+        String logFile = OUTPUT_DIR + "/cfrrl_debug_" + EXPERIMENT_NAME + ".log";
+        String latencyCsvFile = OUTPUT_DIR + "/latency_results_" + EXPERIMENT_NAME + ".csv";
         
         // ==================== STEP 1: Initialize Logging ====================
         CFRRLLogger.init(logFile);
