@@ -1,0 +1,39 @@
+================================================================================
+CFR-RL DEBUG LOG
+Started: 2025-12-04 20:55:10
+Log file: C:\Users\saifk\CS370\Code\round2\cloudsimsdn\test_direct\output\episode.log
+================================================================================
+
+Format: [WallClock] [SimTime] [Level] [Component] Message
+
+[20:55:10.351] [t=    0.00] [INFO ] [TrainingRunner ] === EPISODE START ===
+[20:55:10.359] [t=    0.00] [INFO ] [TrainingRunner ] Workload: test_direct/workload.csv
+[20:55:10.362] [t=    0.00] [INFO ] [TrainingRunner ] Critical flows: test_direct/critical_flows.txt
+[20:55:10.362] [t=    0.00] [INFO ] [TrainingRunner ] Output dir: test_direct/output/
+[20:55:10.366] [t=    0.00] [WARN ] [TrainingRunner ] Expected 8 critical flows, got 50
+[20:55:10.366] [t=    0.00] [INFO ] [TrainingRunner ] Loaded 50 critical flows: [1, 129, 130, 2, 4, 5, 7, 11, 18, 20, 24, 27, 30, 31, 33, 35, 37, 38, 39, 41, 47, 49, 51, 54, 55, 57, 59, 60, 63, 65, 66, 70, 72, 78, 81, 85, 90, 92, 99, 108, 110, 116, 118, 119, 121, 123, 124, 125, 126, 127]
+[20:55:10.377] [t=    0.00] [INFO ] [LatencyCollector] Initialized
+[20:55:10.377] [t=    0.00] [INFO ] [LatencyCollector] Reset for new simulation
+[20:55:10.380] [t=    0.00] [INFO ] [LinkStatsCollector] Reset for new episode
+[20:55:10.382] [t=    0.00] [INFO ] [LatencyCollector] CSV export initialized: test_direct/output/latency_results.csv
+[20:55:10.384] [t=    0.00] [INFO ] [LatencyCollector] Critical flows updated: 50 flows
+[20:55:10.626] [t=    0.00] [INFO ] [TrainingRunner ] Physical topology loaded: 12 hosts
+[20:55:10.629] [t=    0.00] [INFO ] [LinkPolicy     ] Created with K=8
+[20:55:10.631] [t=    0.00] [INFO ] [LinkPolicy     ] Verbose logging: false
+[20:55:10.632] [t=    0.00] [INFO ] [LinkPolicy     ] Updated critical flows: 50 total (added: [1, 129, 130, 2, 4, 5, 7, 11, 18, 20, 24, 27, 30, 31, 33, 35, 37, 38, 39, 41, 47, 49, 51, 54, 55, 57, 59, 60, 63, 65, 66, 70, 72, 78, 81, 85, 90, 92, 99, 108, 110, 116, 118, 119, 121, 123, 124, 125, 126, 127], removed: [])
+[20:55:10.632] [t=    0.00] [INFO ] [TrainingRunner ] Critical flows set on policy
+[20:55:10.652] [t=    0.00] [INFO ] [TrainingRunner ] Virtual topology deployed
+[20:55:10.652] [t=    0.00] [INFO ] [TrainingRunner ] Submitting workload: test_direct/workload.csv
+[20:55:10.652] [t=    0.00] [INFO ] [TrainingRunner ] Starting simulation...
+[20:55:10.745] [t=    0.00] [ERROR] [TrainingRunner ] Episode failed - NullPointerException: CloudSim.startCloudSimulation() : Error - you haven't initialized CloudSim.
+--- Stack Trace ---
+java.lang.NullPointerException: CloudSim.startCloudSimulation() : Error - you haven't initialized CloudSim.
+	at org.cloudbus.cloudsim.core.CloudSim.startSimulation(CloudSim.java:200)
+	at org.cloudbus.cloudsim.sdn.example.CFRRLTrainingRunner.main(CFRRLTrainingRunner.java:168)
+	at org.codehaus.mojo.exec.ExecJavaMojo$1.run(ExecJavaMojo.java:279)
+	at java.lang.Thread.run(Thread.java:750)
+--- End Stack Trace ---
+
+================================================================================
+LOG ENDED: 2025-12-04 20:55:10
+================================================================================

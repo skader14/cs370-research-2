@@ -23,8 +23,8 @@ class TrainingConfig:
     # ==========================================================================
     
     num_episodes: int = 500           # Total training episodes
-    packets_per_episode: int = 300    # Packets per workload
-    episode_duration: float = 90.0    # Simulated seconds per episode
+    packets_per_episode: int = 50     # Match original Abilene (~51 packets)
+    episode_duration: float = 20.0    # Match original (~20 seconds)
     
     # ==========================================================================
     # Network Topology
@@ -77,14 +77,13 @@ class TrainingConfig:
     # Reward = -queuing_weight * (mean_queuing_ms / 1000) - drop_penalty * drop_rate
     
     # ==========================================================================
-    # Workload Generation
+    # Workload Generation (tuned to match original Abilene)
+    # Original: 51 packets, 1 per flow, 6.39 GB total, 20 seconds
     # ==========================================================================
     
-    min_packet_size: int = 1_000_000        # 1 MB
-    max_packet_size: int = 500_000_000      # 500 MB
-    flow_activity_prob: float = 0.4         # Probability each flow is active
-    burst_prob: float = 0.1                 # Probability of burst traffic
-    burst_multiplier: float = 3.0           # Burst size multiplier
+    min_packet_size: int = 20_000_000       # 20 MB (original min: 13 MB)
+    max_packet_size: int = 400_000_000      # 400 MB (original max: 957 MB)
+    # Note: Now using 1 packet per flow (like original) - no burst settings needed
     
     # ==========================================================================
     # Checkpointing and Logging

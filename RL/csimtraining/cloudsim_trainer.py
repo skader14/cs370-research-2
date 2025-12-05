@@ -25,7 +25,7 @@ import numpy as np
 import torch
 import pandas as pd
 
-from workload_generator import generate_workload, save_workload, generate_demand_vector, get_workload_stats
+from workload_generator import generate_workload, save_workload, generate_demand_vector, get_workload_stats, load_workload
 from episode_runner import EpisodeRunner, compute_reward
 from feature_extractor import FeatureExtractor, NUM_FLOWS
 from policy_network import PolicyNetwork, FlowWisePolicyNetwork, ReinforceTrainer, K_CRITICAL
@@ -40,13 +40,16 @@ class TrainingConfig:
     
     # Episode settings
     num_episodes: int = 500
-    packets_per_episode: int = 300
-    episode_duration: float = 90.0
+    packets_per_episode: int = 50         # Match original Abilene (~51)
+    episode_duration: float = 20.0        # Match original (~20 seconds)
     
     # Policy settings
     k_critical: int = 8
     num_features: int = 9
     hidden_dims: list = [512, 256, 128]
+    
+    # Workload settings
+    difficulty: str = 'mixed'             # 'easy', 'mixed', or 'hard'
     
     # Training settings
     learning_rate: float = 1e-4
@@ -72,6 +75,11 @@ class TrainingConfig:
     output_dir: str = "training_outputs"
     
     def __init__(self, **kwargs):
+        # First, copy all class defaults to instance
+        for attr in dir(self):
+            if not attr.startswith('_') and not callable(getattr(self, attr)):
+                setattr(self, attr, getattr(self, attr))
+        # Then override with any provided kwargs
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
@@ -245,19 +253,30 @@ class CloudSimTrainer:
     def _run_episode(self, episode_id: int) -> Dict[str, Any]:
         """Run a single training episode."""
         
-        # 1. Generate random workload
-        workload_df = generate_workload(
-            num_packets=self.config.packets_per_episode,
-            duration=self.config.episode_duration,
-            seed=None,  # Truly random
-        )
+        # Check for existing workload file (for testing)
+        existing_workload = getattr(self.config, 'existing_workload', None)
         
-        # Save workload
-        episode_dir = f"episodes/ep_{episode_id:04d}"
-        workload_file = f"{episode_dir}/workload.csv"
-        workload_path = self.output_dir / workload_file
-        workload_path.parent.mkdir(parents=True, exist_ok=True)
-        save_workload(workload_df, str(workload_path))
+        if existing_workload:
+            # Use existing workload file
+            workload_path = Path(self.config.cloudsim_dir) / existing_workload
+            episode_dir = f"episodes/ep_{episode_id:04d}"
+            workload_df = load_workload(str(workload_path))
+            workload_file = existing_workload
+        else:
+            # 1. Generate random workload
+            workload_df = generate_workload(
+                num_packets=self.config.packets_per_episode,
+                duration=self.config.episode_duration,
+                difficulty=self.config.difficulty,
+                seed=None,  # Truly random
+            )
+            
+            # Save workload
+            episode_dir = f"episodes/ep_{episode_id:04d}"
+            workload_file = f"{episode_dir}/workload.csv"
+            workload_path = self.output_dir / workload_file
+            workload_path.parent.mkdir(parents=True, exist_ok=True)
+            save_workload(workload_df, str(workload_path))
         
         # 2. Extract features
         demand = generate_demand_vector(workload_df)
@@ -390,6 +409,7 @@ class CloudSimTrainer:
                 workload_df = generate_workload(
                     num_packets=self.config.packets_per_episode,
                     duration=self.config.episode_duration,
+                    difficulty=self.config.difficulty,
                 )
                 
                 # Extract features
@@ -450,10 +470,15 @@ def main():
     # Training settings
     parser.add_argument("--episodes", type=int, default=500,
                        help="Number of training episodes")
-    parser.add_argument("--packets", type=int, default=300,
-                       help="Packets per episode")
-    parser.add_argument("--duration", type=float, default=90.0,
-                       help="Episode duration (simulated seconds)")
+    parser.add_argument("--packets", type=int, default=50,
+                       help="Packets per episode (default: 50, matching original Abilene)")
+    parser.add_argument("--duration", type=float, default=20.0,
+                       help="Episode duration in seconds (default: 20, matching original Abilene)")
+    parser.add_argument("--k-critical", type=int, default=8,
+                       help="Number of critical flows to select (K)")
+    parser.add_argument("--difficulty", type=str, default="mixed",
+                       choices=["easy", "mixed", "hard"],
+                       help="Workload difficulty: easy (good flows only), mixed (good + stress), hard (all flows)")
     parser.add_argument("--lr", type=float, default=1e-4,
                        help="Learning rate")
     
@@ -476,6 +501,8 @@ def main():
         num_episodes=args.episodes,
         packets_per_episode=args.packets,
         episode_duration=args.duration,
+        k_critical=args.k_critical,
+        difficulty=args.difficulty,
         learning_rate=args.lr,
         cloudsim_dir=args.cloudsim_dir,
         output_dir=args.output_dir,

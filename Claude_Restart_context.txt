@@ -1,549 +1,354 @@
-# CFR-RL Latency-Aware Extension - Restart Context
+# CFR-RL Project - Complete Restart Context
 
-## Project Summary
-
-**Goal:** Extend CFR-RL (Zhang et al., arXiv:2004.11986) to measure and optimize for latency, not just Maximum Link Utilization (MLU).
-
-**Research Question:** Does MLU-optimized routing inadvertently hurt latency? Can we do better with a latency-aware objective?
-
-**Status:** CloudSim-in-the-loop training architecture designed. Java components ready. Python training harness next.
+**Last Updated:** December 2024  
+**Status:** ROOT CAUSE FOUND AND FIXED - Ready for training
 
 ---
 
-## CURRENT DIRECTION: CloudSim-in-the-Loop Training
+## PROJECT OVERVIEW
 
-### Why CloudSim Training?
+### Goal
+Extend CFR-RL (Zhang et al., arXiv:2004.11986) to train with **real CloudSim latency feedback** instead of LP proxy metrics.
 
-Heavy workload experiments showed the **same flows cause congestion regardless of model**:
-- flow_84 (7.5s queuing), flow_50 (7.3s), flow_109 (5.4s), flow_130 (5.3s)
+### Research Question
+Can we train an RL policy that learns to select critical flows based on actual network congestion patterns observed in simulation?
 
-**Root cause:** LP proxy metrics (avg_utilization) don't predict real queuing delays.
+### Architecture
+```
+Python Training Loop                    Java CloudSim
+       │                                     │
+       ├── Generate random workload ────────►│
+       ├── Policy selects K=8 flows ────────►│
+       │                                     ├── LP solver optimizes routing
+       │                                     ├── Simulate network
+       │◄── episode_summary.json ────────────┤
+       │◄── flow_summary.csv ────────────────┤
+       │◄── link_stats.csv ──────────────────┤
+       ├── Compute reward                    │
+       ├── REINFORCE policy update           │
+       └── Next episode                      │
+```
 
-**Solution:** Train with real CloudSim feedback instead of LP approximations.
+---
 
-### Architecture Confirmed
+## ROOT CAUSE FOUND ✓
 
-| Decision | Choice |
-|----------|--------|
-| Training loop | Episodic (CloudSim subprocess per episode) |
-| Features | **9 focused features** (3 static, 1 dynamic, 5 historical) |
-| Reward | `-mean_queuing - 10*drop_rate` |
-| Workloads | Random seed each episode |
-| History | Last episode only |
-| Cold start | Random values (not zeros) |
-| Episodes | 500 total, 300 packets each, 90 sim seconds |
+### The Problem
+Generated workloads had ~66% packet drops while original Abilene workload had 0%.
 
-### 9 Features (Confirmed)
+### Scientific Investigation Results
+
+| Test | Flow IDs | Timing/Sizes | Drop Rate | Conclusion |
+|------|----------|--------------|-----------|------------|
+| Original | Original | Original | 0% | Baseline |
+| Test 1 | **Original** | Random | **3.9%** | ✓ Flow IDs matter! |
+| Test 2 | **Generated** | Original | **66%** | ✗ Bad flow IDs |
+| Exp 3 | Generated | ALL flows LP | 66% | LP can't help |
+
+### Root Cause
+**The randomly-selected flow IDs create bottlenecks in the Abilene topology.**
+
+The original workload uses 51 specific flow IDs that distribute traffic well across the network. Random selection from all 132 possible flows picks combinations that all funnel through the same links, causing drops even when ALL flows get LP-optimized routing.
+
+### The Fix
+The workload generator now samples from `ABILENE_GOOD_FLOWS` - the 51 flow IDs from the original workload that are known to work:
 
 ```python
-features = [
-    # Static (3)
-    propagation_delay,        # Physical latency
-    path_length,              # Hops - more = more queuing
-    bottleneck_capacity,      # For generalization
-    
-    # Dynamic (1)
-    demand,                   # Current traffic load
-    
-    # Historical (5) - from real CloudSim!
-    prev_mean_queuing,        # Flow's avg delay last episode
-    prev_max_queuing,         # Flow's worst delay
-    prev_drop_rate,           # Severe congestion signal
-    prev_path_utilization,    # Avg link util on path
-    prev_bottleneck_util,     # MAX link util on path (worst link)
+ABILENE_GOOD_FLOWS = [
+    5, 7, 9, 10, 12, 13, 14, 15, 17, 18, 22, 23, 27, 30, 31, 33, 37, 39, 41, 
+    47, 48, 49, 50, 52, 62, 72, 74, 77, 81, 83, 84, 85, 88, 89, 95, 96, 98, 
+    102, 103, 106, 108, 109, 110, 113, 114, 115, 116, 122, 123, 130, 131
 ]
 ```
 
-### Files Created for Training
+---
 
-**Java (in org.cloudbus.cloudsim.sdn.rl/):**
-- `LinkStatsCollector.java` - NEW - Per-link utilization tracking
-- `LatencyCollector.java` - MODIFIED - Drop tracking, flow summaries, episode export
-- `CFRRLTrainingRunner.java` - NEW - Episode runner for Python subprocess
+## WHAT ARE CRITICAL FLOWS?
 
-**Python (to be created):**
-- `cloudsim_trainer.py` - Main training loop
-- `feature_extractor.py` - 9-feature computation
-- `workload_generator.py` - Random workload creation
-- `episode_runner.py` - CloudSim subprocess wrapper
+In CFR-RL, the RL policy's job is to select **which flows to optimize**:
 
-### Training Episode Flow
+1. **132 possible flows** exist in the Abilene network (12 nodes × 11 destinations)
+2. Policy selects **K=8 critical flows** per episode
+3. **Only critical flows** get LP-optimized routing (smart path selection)
+4. **Non-critical flows** use default shortest-path routing
 
+**Why this matters:**
+- If you select the RIGHT 8 flows (the ones causing bottlenecks), LP can route them better
+- If you select the WRONG 8 flows, the actual bottleneck flows still congest the network
+- With 50 active flows and only 8 optimized, 42 compete for shortest paths → potential congestion
+
+---
+
+## FILE STRUCTURE
+
+### Essential Files
 ```
-Python                                Java (subprocess)
-  │                                       │
-  ├─ Generate workload.csv ───────────────┤
-  ├─ Write critical_flows.txt ────────────┤
-  │                                       │
-  ├─ subprocess.run(CFRRLTrainingRunner) ─┼─► Run simulation
-  │                                       │
-  │                                       ├─► Export:
-  │                                       │   - episode_summary.json
-  │                                       │   - flow_summary.csv
-  │                                       │   - link_stats.csv
-  │                                       │
-  ├─ Read results ◄───────────────────────┤
-  ├─ Compute reward                       │
-  ├─ Update policy (REINFORCE)            │
-  └─ Loop ────────────────────────────────┘
+cloudsimsdn/
+├── pom.xml                              # Maven build
+├── src/                                 # Java source
+│   └── org/cloudbus/cloudsim/sdn/
+│       ├── example/
+│       │   └── CFRRLTrainingRunner.java # Episode runner for training
+│       ├── rl/
+│       │   ├── LatencyCollector.java    # Per-packet latency tracking
+│       │   └── LinkStatsCollector.java  # Per-link utilization tracking
+│       └── policies/
+│           └── CFRRLLinkPolicy.java     # LP-based routing policy
+├── dataset-abilene/
+│   ├── abilene-physical.json            # Network topology
+│   ├── abilene-virtual.json             # VM placement
+│   └── abilene-workload.csv             # Original benchmark (51 packets, 0% drops)
+└── RL/
+    ├── abilene_lp_solver_latency.py     # LP solver with latency weight
+    ├── abilene_trainer_latency.py       # Original LP-based trainer
+    └── csimtraining/                    # CloudSim-in-the-loop training
+        ├── __init__.py
+        ├── cloudsim_trainer.py          # Main training loop
+        ├── policy_network.py            # Neural network + REINFORCE
+        ├── feature_extractor.py         # 9 features per flow
+        ├── workload_generator.py        # Random workload generation
+        ├── episode_runner.py            # CloudSim subprocess wrapper
+        ├── config.py                    # Hyperparameters
+        ├── evaluate_policy.py           # Compare trained vs random
+        └── test_training_setup.py       # Verification script
+```
+
+### Files to Clean Up
+```
+# Delete all of these:
+test_*/                # Test directories
+debug_*/               # Debug runs  
+training_*/            # Training outputs
+eval_*/                # Evaluation outputs
+result_*/              # CloudSim auto-generated (empty)
+outputs/               # Temporary outputs
+*.log                  # Log files in root
 ```
 
 ---
 
-## PREVIOUS RESULTS (LP-Only Training)
+## JAVA COMPONENTS
 
-### Experiment 3: Heavy Workload (132 packets processed, ~146s simulation)
+### CFRRLTrainingRunner.java
+**Purpose:** Runs a single training episode from command line.
 
-| Metric | MLU-only | Latency-aware | Difference | Winner |
-|--------|----------|---------------|------------|--------|
-| Mean queuing | 455.55ms | 455.96ms | +0.41ms | TIE |
-| P90 queuing | 1153ms | 1150ms | -2.75ms | TIE |
-| P95 queuing | 3591ms | 3591ms | 0 | TIE |
-| Max queuing | 7500ms | 7500ms | 0 | TIE |
-| Mean path length | 4.45 | 4.75 | +0.30 hops | MLU |
-| Packets >100ms queue | 22 (16.7%) | 23 (17.4%) | +1 | MLU |
+**Usage:**
+```bash
+mvn exec:java "-Dexec.mainClass=org.cloudbus.cloudsim.sdn.example.CFRRLTrainingRunner" \
+  "-Dexec.args=<workload.csv> <critical_flows.txt> <output_dir>/"
+```
 
-**Critical finding:** The TOP 10 WORST PACKETS ARE IDENTICAL between both models!
+**Inputs:**
+- `workload.csv`: Traffic to simulate
+- `critical_flows.txt`: One flow ID per line (e.g., "84\n50\n109...")
 
-| Rank | Flow | Queuing | Route |
-|------|------|---------|-------|
-| 1 | flow_84 | 7500ms | vm_7→vm_8 |
-| 2 | flow_50 | 7327ms | vm_4→vm_7 |
-| 3 | flow_109 | 5368ms | vm_9→vm_11 |
-| 4 | flow_130 | 5315ms | vm_11→vm_9 |
+**Outputs:**
+- `episode_summary.json`: Aggregate metrics (drop_rate, mean_queuing_ms, etc.)
+- `flow_summary.csv`: Per-flow statistics
+- `link_stats.csv`: Per-link utilization
+- `latency_results.csv`: Per-packet latency breakdown
 
-**Root cause:** The latency_weight changes HOW flows are routed, but not WHICH flows are selected for optimization. The same problematic flows (84, 50, 109, 130) cause congestion regardless.
+### LatencyCollector.java
+**Purpose:** Tracks per-packet latency decomposition.
 
-**Conclusion:** Must add latency features to flow selection, and consider training with CloudSim for real latency feedback.
+**Metrics:**
+- Propagation delay (physical distance)
+- Transmission delay (packet_size / bandwidth)
+- Queuing delay (time waiting in buffers)
+- Drop tracking
 
-### Experiment 2: Light Workload After Bug Fix (51 packets)
+### LinkStatsCollector.java
+**Purpose:** Tracks per-link utilization for features.
 
-| Metric | MLU-only | Latency-aware | Winner |
-|--------|----------|---------------|--------|
-| Mean queuing | 12.81ms | 14.06ms | MLU-only |
-| Max queuing | 86.93ms | 100.00ms | MLU-only |
+**Metrics:**
+- Average utilization per link
+- Max utilization per link
+- Congestion events
 
-Latency-aware performed slightly worse due to longer paths.
+### CFRRLLinkPolicy.java
+**Purpose:** LP-based routing for critical flows.
+
+**Behavior:**
+- Critical flows → LP solver finds optimal paths
+- Non-critical flows → Default shortest path
 
 ---
 
-## Architecture Overview
+## PYTHON COMPONENTS
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  PYTHON (Training) - COMPLETE                                │
-│  - abilene_trainer_latency.py: Trains RL policy             │
-│  - abilene_lp_solver_latency.py: LP with latency_weight     │
-│  - Outputs: best_abilene_lw0.0.pt, best_abilene_lw0.3.pt   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│  JAVA (CloudSimSDN Simulation) - IN PROGRESS                 │
-│  - CFRRLExample.java: Main simulation runner                 │
-│  - LatencyCollector.java: NEW - records per-packet latency  │
-│  - SDNDatacenter.java: MODIFIED - calls LatencyCollector    │
-│  - NetworkOperatingSystem.java: MODIFIED - exposes channels │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Key Concepts
-
-### Latency Weight (LP Objective Modification)
-- `latency_weight=0.0`: Pure MLU minimization (original Zhang paper)
-- `latency_weight=0.3`: Trades some MLU for lower queuing delay
-- Objective: `minimize(U + latency_weight * avg_utilization)`
-
-### Latency Measurement Formula
-```
-queuing_delay = serve_time - propagation_delay - transmission_delay
-where:
-  serve_time = finish_time - start_time
-  propagation = Channel.getTotalLatency() (physical distance)
-  transmission = packet_size / bandwidth
-```
-
-### Training Process (REINFORCE)
-- No fixed dataset - generates random traffic each iteration
-- Policy network scores all 132 flows, samples K=8 to optimize
-- LP solver computes optimal routing for selected flows
-- Reward = 1/MLU (lower utilization = higher reward)
-
----
-
-## Training Results Summary
-
-Both models trained successfully:
-
-| Model | Best Eval (iter 500) | Final Eval |
-|-------|---------------------|------------|
-| MLU-only (lw=0.0) | CFR-RL beats Top-K by 2.1% | CFR-RL beats Top-K by 5.4% |
-| Latency-aware (lw=0.3) | CFR-RL beats Top-K by 2.1% | CFR-RL beats Top-K by 5.4% |
-
-**Key observation:** Similar MLU performance, but real latency difference will appear in CloudSimSDN simulation.
-
----
-
-## Files Modified for Latency Extension
-
-### Java (CloudSimSDN) - Training Support
-
-1. **CFRRLTrainingRunner.java** (NEW)
-   - Location: `org/cloudbus/cloudsim/sdn/example/`
-   - Purpose: Episode runner for Python subprocess training
-   - Usage: `java CFRRLTrainingRunner <workload.csv> <critical_flows.txt> [output_dir]`
-   - Outputs: episode_summary.json, flow_summary.csv, link_stats.csv, latency_results.csv
-
-2. **LinkStatsCollector.java** (NEW)
-   - Location: `org/cloudbus/cloudsim/sdn/rl/`
-   - Purpose: Per-link utilization tracking (not just per-node)
-   - Key features: avg/max utilization, congestion events, bottleneck detection
-   - Integration: Call from Link.updateMonitor()
-
-3. **Link.java** (MODIFIED)
-   - In `updateMonitor()`: Call `LinkStatsCollector.getInstance().recordLinkUtilization()`
-   - Records proper link IDs like "Seattle->Sunnyvale"
-
-4. **LatencyCollector.java** (ENHANCED)
-   - Added: Per-flow drop tracking (`droppedCount`, `getDropRate()`)
-   - Added: `exportFlowSummary(filename)` - CSV for Python features
-   - Added: `exportEpisodeSummary(filename)` - JSON for reward computation
-   - Added: Enhanced FlowStats with min/p95 queuing, total bytes
-
-### Java (CloudSimSDN) - Original Latency Support
-
-5. **NetworkOperatingSystem.java** (MODIFIED)
-   - Added: `pkt.setChannelInfo()` call in `processCompletePackets()`
-
-6. **SDNDatacenter.java** (MODIFIED)
-   - In `processPacketCompleted()`: Uses `pkt.getChannelXxx()` for latency info
-
-7. **Packet.java** (MODIFIED)
-   - Added: channel info storage (`channelTotalLatency`, `channelBandwidth`, `channelPathLength`)
-
-### Python (Training)
-
-6. **abilene_lp_solver_latency.py** (MODIFIED)
-   - Added `latency_weight` parameter to `solve()` method
-   - New objective: `minimize(U + latency_weight * avg_utilization)`
-
-7. **abilene_trainer_latency.py** (MODIFIED)
-   - `TrainingConfig.latency_weight` field
-   - Passes `latency_weight` to solver in `train_step()` and `evaluate()`
-
-8. **agent.py** (MODIFIED)
-   - Easy model switching via `MODEL_PATH` and `EXPERIMENT_NAME` at top
-   - Outputs to `outputs/` folder
-
-9. **compare_latency_results.py** (NEW)
-   - Compares two latency CSV files
-   - Prints queuing delay, serve time, path length statistics
-
----
-
-## Output Folder Structure
-
-All outputs go to the `outputs/` folder for easy organization:
-
-```
-outputs/
-├── cfrrl_debug_mlu_only.log           # Java debug log (MLU experiment)
-├── cfrrl_debug_latency_aware.log      # Java debug log (latency experiment)
-├── cfrrl_agent_mlu_only.log           # Python agent log
-├── cfrrl_agent_latency_aware.log      # Python agent log
-├── latency_results_mlu_only.csv       # Per-packet latency data
-└── latency_results_latency_aware.csv  # Per-packet latency data
-```
-
-### How to Switch Experiments
-
-**Step 1: Edit agent.py (Python)**
+### Training Loop (cloudsim_trainer.py)
 ```python
-# At top of file, uncomment ONE:
-MODEL_PATH = "best_abilene_lw0.0.pt"   # MLU-only
-# MODEL_PATH = "best_abilene_lw0.3.pt"   # Latency-aware
-
-EXPERIMENT_NAME = "mlu_only"           # Must match Java
-# EXPERIMENT_NAME = "latency_aware"
-```
-
-**Step 2: Edit CFRRLExampleLatency.java (Java)**
-```java
-private static final String EXPERIMENT_NAME = "mlu_only";  // Must match Python
-// private static final String EXPERIMENT_NAME = "latency_aware";
-```
-
-**Step 3: Run**
-```bash
-mvn exec:java -Dexec.mainClass="org.cloudbus.cloudsim.sdn.example.CFRRLExampleLatency"
-```
-
----
-
-## Abilene Topology
-
-- 12 nodes (Seattle, Sunnyvale, LosAngeles, Denver, KansasCity, Houston, Chicago, Indianapolis, Atlanta, Washington, NewYork, Jacksonville)
-- 30 links with latencies 2-12ms
-- 132 flows (12×11 directed pairs)
-- K=8 critical flows selected by RL policy
-
----
-
-## Current State & Next Steps
-
-### Completed
-- [x] LatencyCollector.java created and integrated
-- [x] SDNDatacenter.java modified to record latency
-- [x] NetworkOperatingSystem.java modified to store channel info on packet
-- [x] Packet.java modified with channel info fields
-- [x] LP solver modified with latency_weight
-- [x] Trainer modified to pass latency_weight
-- [x] Trained MLU-only model (best_abilene_lw0.0.pt)
-- [x] Trained latency-aware model (best_abilene_lw0.3.pt)
-- [x] Fixed Channel lookup bug
-- [x] Created heavy workload (500 packets, 136s)
-- [x] Ran heavy workload experiments
-- [x] Identified root cause: same flows cause congestion regardless of model
-- [x] **Designed CloudSim training architecture (9 features)**
-- [x] **Created LinkStatsCollector.java**
-- [x] **Enhanced LatencyCollector.java (drops, flow summaries, episode export)**
-- [x] **Created CFRRLTrainingRunner.java**
-
-### Next Steps (In Order)
-
-**Phase 1: Java Integration (CURRENT)**
-
-1. [ ] Copy LinkStatsCollector.java to project
-2. [ ] Modify Link.java to call LinkStatsCollector
-3. [ ] Test: Run one episode with CFRRLTrainingRunner
-4. [ ] Verify outputs: episode_summary.json, flow_summary.csv, link_stats.csv
-
-**Phase 2: Python Training Harness**
-
-5. [ ] Create workload_generator.py (random workloads)
-6. [ ] Create episode_runner.py (CloudSim subprocess)
-7. [ ] Create feature_extractor.py (9 features with history)
-8. [ ] Modify policy network (4 → 9 features)
-9. [ ] Create cloudsim_trainer.py (REINFORCE loop)
-
-**Phase 3: Training & Evaluation**
-
-10. [ ] Run 500 episodes on Colab
-11. [ ] Compare CloudSim-trained vs LP-trained
-12. [ ] Analyze flow selection patterns
-
-See: CLOUDSIM_TRAINING_ARCHITECTURE.md for full design
-See: CLOUDSIM_TRAINING_DECISIONS.md for confirmed decisions
-
----
-
-## Files Needed to Continue
-
-Upload these files if starting a new chat:
-
-1. **Java files** (to verify integration):
-   - LatencyCollector.java
-   - SDNDatacenter.java (modified version)
-   - NetworkOperatingSystem.java (modified version)
-   - CFRRLExampleLatency.java
-
-2. **Python files** (to verify training):
-   - abilene_lp_solver_latency.py
-   - abilene_trainer_latency.py
-   - agent.py (with outputs folder support)
-
-3. **Config files**:
-   - abilene-physical.json
-   - abilene-virtual.json
-   - abilene-workload.csv (light - 51 packets)
-   - abilene-workload-heavy.csv (heavy - 500 packets)
-
-4. **Trained models**:
-   - best_abilene_lw0.0.pt (MLU-only)
-   - best_abilene_lw0.3.pt (latency-aware)
-
-5. **Results** (if available):
-   - outputs/latency_results_mlu_only.csv
-   - outputs/latency_results_latency_aware.csv
-
-6. **Analysis tools**:
-   - compare_latency_results.py
-
-7. **Architecture docs**:
-   - CLOUDSIM_TRAINING_ARCHITECTURE.md (full design)
-   - CLOUDSIM_TRAINING_DECISIONS.md (decision points)
-
----
-
-## Prompt to Continue
-
-Paste this to start a new conversation:
-
-```
-I'm extending CFR-RL to train with CloudSim-in-the-loop instead of LP proxy.
-
-CONFIRMED ARCHITECTURE:
-- Episodic training: Python runs CloudSim subprocess per episode
-- 500 episodes, 300 packets each, 90 simulated seconds
-- 9 features per flow: 3 static + 1 dynamic + 5 historical
-- Reward: -mean_queuing - 10*drop_rate
-- Historical features from last episode (random init for cold start)
-- Agent does NOT know which flows it selected (avoid bias)
-
-JAVA FILES CREATED (need integration):
-- LinkStatsCollector.java: Per-link utilization tracking
-- CFRRLTrainingRunner.java: Episode runner for subprocess
-- LatencyCollector.java: Enhanced with drops, flow summaries, episode export
-- Link.java: Needs modification to call LinkStatsCollector
-
-PYTHON FILES NEEDED:
-- cloudsim_trainer.py: Main training loop
-- feature_extractor.py: 9-feature computation
-- workload_generator.py: Random workload creation
-- episode_runner.py: CloudSim subprocess wrapper
-
-TRAINING RUNNER USAGE:
-java CFRRLTrainingRunner <workload.csv> <critical_flows.txt> [output_dir]
-Outputs: episode_summary.json, flow_summary.csv, link_stats.csv
-
-See: CLOUDSIM_TRAINING_ARCHITECTURE.md and CLOUDSIM_TRAINING_DECISIONS.md
-
-I need help with: [describe current issue]
-```
-
----
-
-## Reference: Zhang Paper Not Required
-
-The key concepts from the Zhang paper are already encoded in the implementation:
-- REINFORCE algorithm for policy gradient
-- Flow selection as the RL action
-- LP solver for optimal routing given selected flows
-- MLU minimization as the original objective
-
-The latency extension is our novel contribution.
-
----
-
-## Bugs Fixed During Development
-
-1. **torch.load() PyTorch 2.6 compatibility**: Add `weights_only=False`
-2. **Final eval not loading best model**: Changed from `except: pass` to proper error handling
-3. **KeyError 'temperature' on skipped iterations**: Use `self.current_temperature` instead of `metrics['temperature']`
-
----
-
-## Known Issues (To Fix)
-
-### 1. Channel lookup returns null - **FIXED ✓**
-
-**Solution applied:** Store channel info on Packet in `processCompletePackets()` before channel is removed.
-
-**Files modified:**
-1. `Packet.java` - Added 3 fields + getters/setters
-2. `NetworkOperatingSystem.java` - Calls `pkt.setChannelInfo()` in `processCompletePackets()`
-3. `SDNDatacenter.java` - Uses `pkt.getChannelXxx()` instead of `findChannel()`
-
-**Result:** Now properly measures propagation_delay, transmission_delay, queuing_delay.
-
----
-
-## Workloads
-
-### Light Workload: abilene-workload.csv (original)
-- 51 packets over ~20 seconds
-- Good for quick tests, insufficient for congestion differentiation
-
-### Heavy Workload: abilene-workload-heavy.csv
-- 500 packets over ~136 seconds
-- 94 GB total data, avg packet 189 MB
-- Includes traffic bursts and hot spots to create congestion
-- Use for meaningful latency comparison
-
-To switch workloads, edit `CFRRLExampleLatency.java`:
-```java
-protected static String[] workloadFiles = {
-    "dataset-abilene/abilene-workload-heavy.csv"  // Heavy workload
-    // "dataset-abilene/abilene-workload.csv"     // Light workload
-};
-```
-
----
-
-## Analysis Tools
-
-### compare_latency_results.py
-
-Compares two latency CSV files and prints statistics:
-
-```bash
-python compare_latency_results.py outputs/latency_results_mlu_only.csv outputs/latency_results_latency_aware.csv
-```
-
-Output includes:
-- Queuing delay (mean, median, P95, P99, max)
-- Serve time (end-to-end latency)
-- Path length differences
-- Packets with >1ms queuing delay
-
----
-
-## Research Extension Ideas
-
-### PRIMARY: CloudSim-in-the-Loop Training
-
-**Why:** LP proxy for latency fails. Same flows cause worst queuing regardless of routing. We need to train on REAL congestion patterns.
-
-**Architecture:**
-```
 for episode in range(500):
-    1. Generate random workload (300 packets, 90s)
-    2. Run CloudSim with current policy
-    3. Read: latency_results.csv, link_stats.csv, episode_summary.json
-    4. Compute features including HISTORICAL data from last episode
-    5. Compute reward = -mean_queuing - 10*drop_rate
-    6. Update policy via REINFORCE
+    # 1. Generate random workload
+    workload = generate_workload(num_packets=50, duration=20)
+    
+    # 2. Extract features (9 per flow, using history from last episode)
+    features = extractor.extract_features(demand_vector)
+    
+    # 3. Policy selects K=8 critical flows
+    selected_flows, log_prob = policy.get_action(features, k=8)
+    
+    # 4. Run CloudSim subprocess
+    results = runner.run_episode(workload, selected_flows, output_dir)
+    
+    # 5. Compute reward
+    reward = -mean_queuing_ms/1000 - 10 * drop_rate
+    
+    # 6. REINFORCE update
+    trainer.update(log_prob, reward)
+    
+    # 7. Update feature history for next episode
+    extractor.update_history(results)
 ```
 
-**Key Innovation - Historical Features:**
+### 9 Features Per Flow
+| # | Feature | Type | Description |
+|---|---------|------|-------------|
+| 1 | propagation_delay | Static | Physical latency from topology |
+| 2 | path_length | Static | Number of hops |
+| 3 | bottleneck_capacity | Static | Min link capacity on path |
+| 4 | demand | Dynamic | Current episode traffic (bytes) |
+| 5 | prev_mean_queuing | Historical | Flow's avg delay last episode |
+| 6 | prev_max_queuing | Historical | Flow's max delay last episode |
+| 7 | prev_drop_rate | Historical | Flow's drop rate last episode |
+| 8 | prev_path_utilization | Historical | Avg link util on flow's path |
+| 9 | prev_bottleneck_util | Historical | Max link util on flow's path |
+
+### Reward Function
 ```python
-features = [
-    # Static: propagation_delay, path_length
-    # Dynamic: demand
-    # Historical (from last episode):
-    prev_mean_queuing,        # How bad was this flow?
-    prev_max_queuing,         # Worst case
-    prev_path_utilization,    # How congested was its path?
-]
+reward = -mean_queuing_ms / 1000 - 10.0 * drop_rate
+```
+- Penalizes high queuing delay
+- Heavily penalizes packet drops (10× weight)
+
+---
+
+## ORIGINAL ABILENE WORKLOAD CHARACTERISTICS
+
+```
+Packets: 51
+Duration: 19.9 seconds
+Total bytes: 6.39 GB
+Average data rate: 2.57 Gbps
+Packet sizes: 13 MB - 958 MB (avg 125 MB)
+Packets per flow: 1 (each flow has exactly one packet)
+Drop rate: 0%
+Mean queuing: 12-14 ms
 ```
 
-**Files needed:**
-- Java: LinkStatsCollector.java (NEW), modify LatencyCollector.java
-- Python: cloudsim_trainer.py, feature_extractor.py, workload_generator.py
+---
 
-See CLOUDSIM_TRAINING_ARCHITECTURE.md for full design.
+## COMMANDS REFERENCE
 
-### DEFERRED: LP-Only Features (if CloudSim training too slow)
-
-If CloudSim training proves too slow, fallback to LP-derived features only:
-
-```python
-features = [
-    demand, num_paths, path_length, bottleneck_capacity,  # Current
-    min_propagation_delay,       # From topology
-    path_congestion_score,       # From LP solution
-    shared_bottleneck_count,     # From LP solution
-]
+### Clean Up Repository
+```powershell
+Remove-Item -Recurse -Force test_*, debug_*, training_*, eval_*, result_*, outputs -ErrorAction SilentlyContinue
 ```
 
-This is faster but uses proxy metrics, not real congestion data.
+### Test Original Workload (should show 0% drops)
+```powershell
+mkdir outputs
+echo "84`n50`n109`n17`n23`n91`n42`n7" | Set-Content test_critical.txt -Encoding ASCII
+mvn exec:java "-Dexec.mainClass=org.cloudbus.cloudsim.sdn.example.CFRRLTrainingRunner" "-Dexec.args=dataset-abilene/abilene-workload.csv test_critical.txt outputs/verify/"
+type outputs\verify\episode_summary.json
+```
 
-### DEFERRED: Dynamic latency_weight
+### Run Training (10 episodes)
+```powershell
+python RL/csimtraining/cloudsim_trainer.py --cloudsim-dir . --episodes 10 --packets 50 --duration 20 --output-dir training_test
+```
 
-Adjust latency_weight based on network state:
-- Low congestion → latency_weight = 0 (pure MLU)
-- High congestion → latency_weight = 0.5 (spread load)
+### Run Debug Investigation
+```powershell
+python RL/csimtraining/debug_drop_rate.py
+```
 
-(Lower priority than CloudSim training)
+---
+
+## KNOWN ISSUES & FIXES
+
+### Issue 1: PowerShell file redirection creates UTF-16
+**Symptom:** `java.lang.NumberFormatException: empty String`
+**Fix:** Use `Copy-Item` or `-Encoding ASCII` instead of `>`
+
+### Issue 2: Windows Maven command quoting
+**Symptom:** Maven can't parse arguments
+**Fix:** Use double quotes around `-D` flags: `"-Dexec.args=..."`
+
+### Issue 3: CloudSim creates empty result_* directories
+**Symptom:** Cluttered repository
+**Fix:** Clean up with `Remove-Item -Recurse -Force result_*`
+
+---
+
+## INVESTIGATION STATUS
+
+### Completed ✓
+- [x] Java training runner implemented
+- [x] Python training harness implemented
+- [x] Training loop runs successfully
+- [x] Original workload achieves 0% drops
+- [x] Workload generator creates valid CSV format
+- [x] Workload timestamps are correct (0-20 seconds)
+- [x] **ROOT CAUSE IDENTIFIED: Flow ID selection matters**
+- [x] **FIX IMPLEMENTED: Use ABILENE_GOOD_FLOWS**
+
+### Ready to Execute
+- [ ] Verify fix with short training run (10 episodes)
+- [ ] Full training run (500 episodes)
+- [ ] Evaluation against random baseline
+- [ ] Final results and analysis
+
+---
+
+## NEXT STEPS
+
+1. **Copy updated workload_generator.py** to RL/csimtraining/
+2. **Verify fix with short training:**
+   ```powershell
+   python RL/csimtraining/cloudsim_trainer.py --cloudsim-dir . --episodes 10 --packets 50 --duration 20 --output-dir training_fixed
+   ```
+   Expected: Drop rates ~0-5% (not 66%)
+   
+3. **If successful, full training:**
+   ```powershell
+   python RL/csimtraining/cloudsim_trainer.py --cloudsim-dir . --episodes 500 --packets 50 --duration 20 --output-dir training_full
+   ```
+
+4. **Evaluate** trained policy vs random baseline
+
+---
+
+## PROMPT TO CONTINUE
+
+Copy this to start a new conversation:
+
+```
+I'm working on CFR-RL with CloudSim-in-the-loop training. Upload CFRRL_RESTART_CONTEXT.md for full context.
+
+STATUS: Root cause found and fixed!
+- Problem: Random flow ID selection caused 66% drops
+- Solution: Sample from ABILENE_GOOD_FLOWS (51 known-good flow IDs)
+- Fix: Updated workload_generator.py
+
+Ready to verify the fix and run training.
+
+Files are in RL/csimtraining/. Test commands:
+# Verify fix (should see low drop rates now)
+python RL/csimtraining/cloudsim_trainer.py --cloudsim-dir . --episodes 10 --packets 50 --duration 20 --output-dir training_fixed
+
+# Full training (after verification)
+python RL/csimtraining/cloudsim_trainer.py --cloudsim-dir . --episodes 500 --packets 50 --duration 20 --output-dir training_full
+```
+
+---
+
+## FILES TO UPLOAD FOR NEW CHAT
+
+Minimum:
+1. `CFRRL_RESTART_CONTEXT.md` (this file)
+
+For deeper context:
+2. `RL/csimtraining/workload_generator.py` (contains the fix)
+3. `RL/csimtraining/cloudsim_trainer.py`
+4. `dataset-abilene/abilene-workload.csv` (original benchmark)
