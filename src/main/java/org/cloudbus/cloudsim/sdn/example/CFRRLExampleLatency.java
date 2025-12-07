@@ -67,8 +67,8 @@ public class CFRRLExampleLatency {
     private static final String PYTHON_SCRIPT = "RL/agent.py";
     
     // File paths
-    protected static String physicalFile = "dataset-abilene/abilene-physical.json";
-    protected static String virtualFile  = "dataset-abilene/abilene-virtual.json";
+    protected static String physicalFile = "dataset-fattree/fattree-physical.json";
+    protected static String virtualFile  = "dataset-fattree/fattree-virtual.json";
     protected static String[] workloadFiles = {
         "dataset-abilene/abilene-workload-heavy.csv"
     };

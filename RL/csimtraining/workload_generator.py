@@ -1,272 +1,365 @@
 """
 workload_generator.py - Generate random workloads for CloudSim training episodes.
 
-Each episode gets a unique random workload to prevent overfitting and ensure
-the policy generalizes across different traffic patterns.
+Updated for Fat-Tree k=4 topology (16 hosts, 240 flows).
+
+Fat-tree properties:
+- Full bisection bandwidth
+- Multiple paths for ALL inter-pod flows (4 paths)
+- Multiple paths for intra-pod flows (2 paths)
+- No "bad" flows - all flows can be routed effectively
 
 CloudSim workload format (CSV with header):
     start,source,z,w1,link,dest,psize,w2
     0.4,vm_7,0,1,flow_84,vm_8,146676818,1
-    
-Where:
-    - start: When packet transmission starts (seconds)
-    - source: Source VM name (e.g., "vm_7")
-    - z: Always 0
-    - w1: Always 1
-    - link: Flow name (e.g., "flow_84")
-    - dest: Destination VM name (e.g., "vm_8")
-    - psize: Packet size in bytes
-    - w2: Always 1
-
-IMPORTANT FINDINGS:
-1. Original Abilene workload has 1 packet per flow. Multiple packets
-   per flow causes high drop rates due to buffer overflow.
-2. Only certain flow IDs work well with the Abilene topology.
-   Random flow ID selection causes 66% packet drops!
-   The original workload's 51 flow IDs achieve ~0% drops.
 """
 
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 import os
 
 
-# Abilene topology constants
-NUM_NODES = 12
-NUM_FLOWS = NUM_NODES * (NUM_NODES - 1)  # 132 flows
+# =============================================================================
+# Fat-Tree k=4 Constants
+# =============================================================================
 
-# CRITICAL: These are the "known good" flow IDs from the original Abilene workload.
-# These flow IDs distribute traffic well across the topology and achieve ~0% drops.
-# Random selection from all 132 flows causes ~66% drops due to bottleneck congestion.
-ABILENE_GOOD_FLOWS = [
-    5, 7, 9, 10, 12, 13, 14, 15, 17, 18, 22, 23, 27, 30, 31, 33, 37, 39, 41, 
-    47, 48, 49, 50, 52, 62, 72, 74, 77, 81, 83, 84, 85, 88, 89, 95, 96, 98, 
-    102, 103, 106, 108, 109, 110, 113, 114, 115, 116, 122, 123, 130, 131
-]
+K = 4
+NUM_PODS = K
+NUM_HOSTS_PER_POD = (K // 2) ** 2  # 4
+NUM_HOSTS = NUM_PODS * NUM_HOSTS_PER_POD  # 16
+NUM_FLOWS = NUM_HOSTS * (NUM_HOSTS - 1)  # 240
 
-# "Stress" flows - these are NOT in the good flows list and may cause congestion
-# Used for mixed difficulty training so the policy learns to prioritize
-ABILENE_STRESS_FLOWS = [f for f in range(NUM_FLOWS) if f not in ABILENE_GOOD_FLOWS]
+NUM_CORE_SWITCHES = (K // 2) ** 2  # 4
+NUM_AGG_PER_POD = K // 2  # 2
+NUM_EDGE_PER_POD = K // 2  # 2
 
 
-def get_flow_pool(difficulty: str = 'easy', num_stress: int = 15, seed: int = None) -> List[int]:
+# =============================================================================
+# Topology Utilities
+# =============================================================================
+
+def get_host_pod(host_id: int) -> int:
+    """Get the pod number for a host (0-3)."""
+    return host_id // NUM_HOSTS_PER_POD
+
+
+def get_host_edge(host_id: int) -> int:
+    """Get the edge switch index within pod for a host (0-1)."""
+    return (host_id % NUM_HOSTS_PER_POD) // (K // 2)
+
+
+def get_flow_type(src: int, dst: int) -> str:
     """
-    Get a flow pool based on difficulty level.
-    
-    Args:
-        difficulty: 'easy' (only good flows), 'mixed' (good + some stress), 'hard' (all flows)
-        num_stress: Number of stress flows to include for 'mixed' difficulty
-        seed: Random seed for selecting stress flows
+    Classify a flow by its path characteristics.
     
     Returns:
-        List of flow IDs to sample from
+        'intra_edge': Same edge switch (1 path, 2 hops)
+        'intra_pod': Same pod, different edge (2 paths, 4 hops)
+        'inter_pod': Different pods (4 paths, 6 hops)
     """
-    if difficulty == 'easy':
-        return ABILENE_GOOD_FLOWS.copy()
-    elif difficulty == 'mixed':
-        rng = np.random.default_rng(seed)
-        stress_sample = rng.choice(ABILENE_STRESS_FLOWS, size=min(num_stress, len(ABILENE_STRESS_FLOWS)), replace=False).tolist()
-        return ABILENE_GOOD_FLOWS + stress_sample
-    elif difficulty == 'hard':
-        return list(range(NUM_FLOWS))
+    src_pod = get_host_pod(src)
+    dst_pod = get_host_pod(dst)
+    
+    if src_pod != dst_pod:
+        return 'inter_pod'
+    
+    src_edge = get_host_edge(src)
+    dst_edge = get_host_edge(dst)
+    
+    if src_edge == dst_edge:
+        return 'intra_edge'
     else:
-        raise ValueError(f"Unknown difficulty: {difficulty}. Use 'easy', 'mixed', or 'hard'.")
+        return 'intra_pod'
+
+
+def get_num_paths(src: int, dst: int) -> int:
+    """Get the number of equal-cost paths for a flow."""
+    flow_type = get_flow_type(src, dst)
+    if flow_type == 'intra_edge':
+        return 1
+    elif flow_type == 'intra_pod':
+        return 2
+    else:
+        return 4
+
+
+def get_path_length(src: int, dst: int) -> int:
+    """Get the path length in hops for a flow."""
+    flow_type = get_flow_type(src, dst)
+    if flow_type == 'intra_edge':
+        return 2
+    elif flow_type == 'intra_pod':
+        return 4
+    else:
+        return 6
 
 
 def flow_id_to_nodes(flow_id: int) -> Tuple[int, int]:
-    """Convert flow ID to (src, dst) node pair."""
-    src = flow_id // (NUM_NODES - 1)
-    dst_idx = flow_id % (NUM_NODES - 1)
+    """Convert flow ID to (src, dst) host pair."""
+    src = flow_id // (NUM_HOSTS - 1)
+    dst_idx = flow_id % (NUM_HOSTS - 1)
     dst = dst_idx if dst_idx < src else dst_idx + 1
     return src, dst
 
 
 def nodes_to_flow_id(src: int, dst: int) -> int:
-    """Convert (src, dst) node pair to flow ID."""
+    """Convert (src, dst) host pair to flow ID."""
     dst_idx = dst if dst < src else dst - 1
-    return src * (NUM_NODES - 1) + dst_idx
+    return src * (NUM_HOSTS - 1) + dst_idx
 
+
+# =============================================================================
+# Pre-computed Flow Classifications
+# =============================================================================
+
+def _classify_all_flows() -> Dict[str, List[int]]:
+    """Pre-compute flow classifications."""
+    flows = {'intra_edge': [], 'intra_pod': [], 'inter_pod': []}
+    
+    for flow_id in range(NUM_FLOWS):
+        src, dst = flow_id_to_nodes(flow_id)
+        flow_type = get_flow_type(src, dst)
+        flows[flow_type].append(flow_id)
+    
+    return flows
+
+
+# Pre-compute at module load
+FLOWS_BY_TYPE = _classify_all_flows()
+INTER_POD_FLOWS = FLOWS_BY_TYPE['inter_pod']    # 192 flows with 4 paths each
+INTRA_POD_FLOWS = FLOWS_BY_TYPE['intra_pod']    # 32 flows with 2 paths each
+INTRA_EDGE_FLOWS = FLOWS_BY_TYPE['intra_edge']  # 16 flows with 1 path each
+MULTI_PATH_FLOWS = INTER_POD_FLOWS + INTRA_POD_FLOWS  # 224 flows with 2+ paths
+
+
+# =============================================================================
+# Workload Generation
+# =============================================================================
 
 def generate_workload(
-    num_packets: int = 50,                  # Target packet count (~51 in original)
-    duration: float = 20.0,                 # Match original (~20s)
+    num_packets: int = 60,
+    duration: float = 20.0,
     seed: Optional[int] = None,
-    min_packet_size: int = 20_000_000,      # 20 MB (original min: 13 MB)
-    max_packet_size: int = 400_000_000,     # 400 MB (original max: 957 MB)
-    use_good_flows: bool = True,            # DEPRECATED: use difficulty instead
-    difficulty: str = 'easy',               # 'easy', 'mixed', or 'hard'
-    flow_pool: Optional[List[int]] = None,  # Custom flow pool (overrides difficulty)
+    min_packet_size: int = 10_000,          # 10 KB
+    max_packet_size: int = 500_000,         # 500 KB
+    flow_selection: str = 'balanced',        # 'balanced', 'inter_pod', 'all'
+    flow_pool: Optional[List[int]] = None,
 ) -> pd.DataFrame:
     """
     Generate a random workload for one training episode.
     
-    Difficulty levels:
-    - 'easy': Only good flows (51 flows that work well with topology)
-    - 'mixed': Good flows + 15 stress flows (policy must learn to prioritize)
-    - 'hard': All 132 flows (high drop rate, for stress testing)
+    Flow selection strategies:
+    - 'balanced': Mix of inter-pod (60%), intra-pod (30%), intra-edge (10%)
+    - 'inter_pod': Only inter-pod flows (max path diversity, 4 paths each)
+    - 'intra_pod': Only intra-pod flows (2 paths each)
+    - 'multi_path': Only flows with 2+ paths (excludes intra-edge)
+    - 'all': Uniform random from all 240 flows
     
     Args:
         num_packets: Number of packets (= number of active flows)
         duration: Simulation duration in seconds
-        seed: Random seed (None for truly random)
+        seed: Random seed
         min_packet_size: Minimum packet size in bytes
         max_packet_size: Maximum packet size in bytes
-        use_good_flows: DEPRECATED, use difficulty instead
-        difficulty: 'easy', 'mixed', or 'hard'
-        flow_pool: Custom list of flow IDs to sample from
+        flow_selection: Strategy for selecting which flows are active
+        flow_pool: Custom list of flow IDs (overrides flow_selection)
     
     Returns:
-        DataFrame in CloudSim format with columns:
-        start, source, z, w1, link, dest, psize, w2
+        DataFrame in CloudSim format
     """
     rng = np.random.default_rng(seed)
-    
-    packets = []
     
     # Determine flow pool
     if flow_pool is not None:
         available_flows = flow_pool
-    elif not use_good_flows:
-        # Backward compatibility: use_good_flows=False means 'hard'
-        available_flows = list(range(NUM_FLOWS))
-    else:
-        # Use difficulty setting
-        available_flows = get_flow_pool(difficulty, seed=seed)
+        selected_flows = rng.choice(available_flows, size=min(num_packets, len(available_flows)), replace=False).tolist()
     
-    # Select which flows are active (each gets exactly 1 packet)
-    num_active = min(num_packets, len(available_flows))
-    active_flows = rng.choice(available_flows, size=num_active, replace=False).tolist()
+    elif flow_selection == 'balanced':
+        # Weighted selection: 60% inter-pod, 30% intra-pod, 10% intra-edge
+        n_inter = int(num_packets * 0.6)
+        n_intra_pod = int(num_packets * 0.3)
+        n_intra_edge = num_packets - n_inter - n_intra_pod
+        
+        selected_flows = []
+        if n_inter > 0 and len(INTER_POD_FLOWS) >= n_inter:
+            selected_flows.extend(rng.choice(INTER_POD_FLOWS, size=n_inter, replace=False).tolist())
+        if n_intra_pod > 0 and len(INTRA_POD_FLOWS) >= n_intra_pod:
+            selected_flows.extend(rng.choice(INTRA_POD_FLOWS, size=n_intra_pod, replace=False).tolist())
+        if n_intra_edge > 0 and len(INTRA_EDGE_FLOWS) >= n_intra_edge:
+            selected_flows.extend(rng.choice(INTRA_EDGE_FLOWS, size=n_intra_edge, replace=False).tolist())
     
-    for flow_id in active_flows:
+    elif flow_selection == 'inter_pod':
+        num_active = min(num_packets, len(INTER_POD_FLOWS))
+        selected_flows = rng.choice(INTER_POD_FLOWS, size=num_active, replace=False).tolist()
+    
+    elif flow_selection == 'intra_pod':
+        num_active = min(num_packets, len(INTRA_POD_FLOWS))
+        selected_flows = rng.choice(INTRA_POD_FLOWS, size=num_active, replace=False).tolist()
+    
+    elif flow_selection == 'multi_path':
+        num_active = min(num_packets, len(MULTI_PATH_FLOWS))
+        selected_flows = rng.choice(MULTI_PATH_FLOWS, size=num_active, replace=False).tolist()
+    
+    else:  # 'all'
+        num_active = min(num_packets, NUM_FLOWS)
+        selected_flows = rng.choice(NUM_FLOWS, size=num_active, replace=False).tolist()
+    
+    # Generate packets
+    packets = []
+    for flow_id in selected_flows:
         src, dst = flow_id_to_nodes(flow_id)
         
-        # Random start time spread across duration
+        # Random start time within duration (leave 5% buffer at end)
         start_time = rng.uniform(0, duration * 0.95)
         
-        # Packet size (log-uniform for realistic distribution)
+        # Log-uniform packet size (favors smaller sizes)
         log_min = np.log(min_packet_size)
         log_max = np.log(max_packet_size)
         packet_size = int(np.exp(rng.uniform(log_min, log_max)))
         
         packets.append({
-            'start': round(start_time, 1),
+            'start': round(start_time, 6),
             'source': f'vm_{src}',
             'z': 0,
             'w1': 1,
             'link': f'flow_{flow_id}',
             'dest': f'vm_{dst}',
             'psize': packet_size,
-            'w2': 1
+            'w2': 1,
         })
     
-    # Create DataFrame and sort by start time
     df = pd.DataFrame(packets)
     df = df.sort_values('start').reset_index(drop=True)
-    
     return df
 
 
-def save_workload(df: pd.DataFrame, filepath: str) -> None:
-    """
-    Save workload to CSV in CloudSim format.
-    
-    CloudSim expects header row:
-    start,source,z,w1,link,dest,psize,w2
-    """
-    # Ensure directory exists
-    Path(filepath).parent.mkdir(parents=True, exist_ok=True)
-    
-    # Save with header (CloudSim format)
-    df.to_csv(filepath, index=False)
+def save_workload(df: pd.DataFrame, path: str) -> None:
+    """Save workload DataFrame to CSV."""
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False)
 
 
-def load_workload(filepath: str) -> pd.DataFrame:
+def load_workload(path: str) -> pd.DataFrame:
     """Load workload from CSV."""
-    return pd.read_csv(filepath)
+    return pd.read_csv(path)
 
 
-def get_workload_stats(df: pd.DataFrame) -> dict:
-    """Get summary statistics for a workload."""
-    # Extract flow_id from 'link' column (e.g., "flow_84" -> 84)
-    flow_ids = df['link'].str.replace('flow_', '').astype(int)
-    
-    return {
-        'num_packets': len(df),
-        'num_active_flows': flow_ids.nunique(),
-        'total_bytes': df['psize'].sum(),
-        'mean_packet_size': df['psize'].mean(),
-        'duration': df['start'].max() - df['start'].min(),
-        'packets_per_flow': len(df) / max(1, flow_ids.nunique()),
-    }
-
-
-def generate_demand_vector(df: pd.DataFrame) -> np.ndarray:
+def generate_demand_vector(workload_df: pd.DataFrame) -> np.ndarray:
     """
-    Convert workload to demand vector for feature computation.
+    Convert workload DataFrame to demand vector.
     
     Returns:
-        Array of shape (132,) with total bytes per flow
+        Array of shape (NUM_FLOWS,) with total bytes per flow
     """
-    demand = np.zeros(NUM_FLOWS)
+    demand = np.zeros(NUM_FLOWS, dtype=np.float64)
     
-    # Extract flow_id from 'link' column
-    for _, row in df.iterrows():
-        flow_id = int(row['link'].replace('flow_', ''))
-        demand[flow_id] += row['psize']
+    for _, row in workload_df.iterrows():
+        # Extract flow ID from 'link' column (format: 'flow_123')
+        link = row.get('link', '')
+        if isinstance(link, str) and 'flow_' in link:
+            try:
+                flow_id = int(link.split('_')[1])
+                if 0 <= flow_id < NUM_FLOWS:
+                    demand[flow_id] += row.get('psize', 0)
+            except (IndexError, ValueError):
+                pass
     
     return demand
 
 
+def get_workload_stats(workload_df: pd.DataFrame) -> Dict:
+    """Get statistics about a workload."""
+    if workload_df.empty:
+        return {'num_packets': 0}
+    
+    total_bytes = workload_df['psize'].sum()
+    duration = workload_df['start'].max() - workload_df['start'].min()
+    
+    # Analyze flow types
+    flow_types = {'intra_edge': 0, 'intra_pod': 0, 'inter_pod': 0}
+    for _, row in workload_df.iterrows():
+        link = row.get('link', '')
+        if isinstance(link, str) and 'flow_' in link:
+            try:
+                flow_id = int(link.split('_')[1])
+                src, dst = flow_id_to_nodes(flow_id)
+                flow_type = get_flow_type(src, dst)
+                flow_types[flow_type] += 1
+            except (IndexError, ValueError):
+                pass
+    
+    return {
+        'num_packets': len(workload_df),
+        'total_bytes_gb': total_bytes / 1e9,
+        'duration_sec': duration,
+        'bytes_per_sec_gbps': (total_bytes * 8 / 1e9) / max(duration, 0.001),
+        'avg_packet_mb': (total_bytes / len(workload_df)) / 1e6,
+        'flow_type_distribution': flow_types,
+    }
+
+
 # =============================================================================
-# Testing
+# Analysis Functions
+# =============================================================================
+
+def analyze_flow_distribution() -> Dict:
+    """Analyze the distribution of flow types in fat-tree."""
+    return {
+        'counts': {
+            'inter_pod': len(INTER_POD_FLOWS),
+            'intra_pod': len(INTRA_POD_FLOWS),
+            'intra_edge': len(INTRA_EDGE_FLOWS),
+        },
+        'total': NUM_FLOWS,
+        'percentages': {
+            'inter_pod': len(INTER_POD_FLOWS) / NUM_FLOWS * 100,
+            'intra_pod': len(INTRA_POD_FLOWS) / NUM_FLOWS * 100,
+            'intra_edge': len(INTRA_EDGE_FLOWS) / NUM_FLOWS * 100,
+        }
+    }
+
+
+# =============================================================================
+# Main / Testing
 # =============================================================================
 
 if __name__ == "__main__":
+    print("Fat-Tree k=4 Workload Generator")
+    print("=" * 50)
+    print(f"Hosts: {NUM_HOSTS}")
+    print(f"Total possible flows: {NUM_FLOWS}")
+    
+    # Flow distribution
+    analysis = analyze_flow_distribution()
+    print("\nFlow Distribution:")
+    for flow_type, count in analysis['counts'].items():
+        pct = analysis['percentages'][flow_type]
+        paths = {'intra_edge': 1, 'intra_pod': 2, 'inter_pod': 4}[flow_type]
+        hops = {'intra_edge': 2, 'intra_pod': 4, 'inter_pod': 6}[flow_type]
+        print(f"  {flow_type}: {count} flows ({pct:.1f}%) - {paths} paths, {hops} hops")
+    
     # Test workload generation
-    print("Testing workload generation...")
-    print("=" * 60)
-    print(f"Using ABILENE_GOOD_FLOWS: {len(ABILENE_GOOD_FLOWS)} known-good flow IDs")
-    
-    # Generate a few workloads
-    for i in range(3):
-        df = generate_workload(num_packets=50, duration=20, seed=None)
+    print("\nSample workload generation:")
+    for strategy in ['balanced', 'inter_pod', 'all']:
+        df = generate_workload(num_packets=60, flow_selection=strategy, seed=42)
         stats = get_workload_stats(df)
-        print(f"\nWorkload {i+1}:")
-        print(f"  Packets: {stats['num_packets']}")
-        print(f"  Active flows: {stats['num_active_flows']}")
-        print(f"  Packets per flow: {stats['packets_per_flow']:.1f}")
-        print(f"  Total bytes: {stats['total_bytes'] / 1e9:.2f} GB")
-        print(f"  Avg packet size: {stats['mean_packet_size'] / 1e6:.1f} MB")
-        print(f"  Duration: {stats['duration']:.1f}s")
+        print(f"\n  Strategy: {strategy}")
+        print(f"    Packets: {stats['num_packets']}")
+        print(f"    Total: {stats['total_bytes_gb']:.2f} GB")
+        print(f"    Flow types: {stats['flow_type_distribution']}")
     
-    # Test saving
-    df = generate_workload(num_packets=50, duration=20, seed=42)
-    save_workload(df, "test_workload.csv")
-    print("\n" + "=" * 60)
-    print("Saved test_workload.csv")
-    print("\nFirst 5 rows:")
-    print(df.head().to_string())
-    
-    # Show which flow IDs were selected
-    flow_ids = sorted([int(f.replace('flow_', '')) for f in df['link'].unique()])
-    print(f"\nFlow IDs used (from ABILENE_GOOD_FLOWS):")
-    print(f"  {flow_ids[:10]}... ({len(flow_ids)} total)")
-    
-    # Compare to original
-    print("\n" + "=" * 60)
-    print("COMPARISON TO ORIGINAL ABILENE:")
-    print("-" * 40)
-    print(f"{'Metric':<25} {'Original':<15} {'Generated':<15}")
-    print("-" * 40)
-    print(f"{'Packets':<25} {'51':<15} {len(df):<15}")
-    print(f"{'Packets per flow':<25} {'1.0':<15} {stats['packets_per_flow']:<15.1f}")
-    print(f"{'Total GB':<25} {'6.39':<15} {stats['total_bytes']/1e9:<15.2f}")
-    print(f"{'Duration (s)':<25} {'20':<15} {stats['duration']:<15.1f}")
+    # Test save/load
+    print("\nTest save/load:")
+    df = generate_workload(num_packets=10, seed=123)
+    save_workload(df, "/tmp/test_workload.csv")
+    loaded = load_workload("/tmp/test_workload.csv")
+    print(f"  Saved and loaded {len(loaded)} packets")
     
     # Test demand vector
     demand = generate_demand_vector(df)
-    print(f"\nDemand vector: {np.count_nonzero(demand)} non-zero flows")
-    print(f"Max demand: {demand.max() / 1e9:.2f} GB")
-    print(f"Total demand: {demand.sum() / 1e9:.2f} GB")
+    print(f"\nDemand vector:")
+    print(f"  Shape: {demand.shape}")
+    print(f"  Non-zero flows: {np.count_nonzero(demand)}")
+    print(f"  Total demand: {demand.sum() / 1e9:.2f} GB")

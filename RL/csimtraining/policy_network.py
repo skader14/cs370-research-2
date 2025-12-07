@@ -1,13 +1,15 @@
 """
 policy_network.py - Neural network for flow selection policy.
 
-The policy network scores all 132 flows based on their features,
-then samples K=8 flows to optimize. Uses REINFORCE for training.
+Updated for Fat-Tree topology (16 hosts, 240 flows).
+
+The policy network scores all 240 flows based on their features,
+then samples K=12 flows to optimize. Uses REINFORCE for training.
 
 Architecture:
-    Input: 132 flows × 9 features = 1188 dimensions (flattened)
+    Input: 240 flows × 9 features = 2160 dimensions (flattened)
     Hidden: 512 -> 256 -> 128 (with ReLU)
-    Output: 132 scores (one per flow)
+    Output: 240 scores (one per flow)
     
     Scores are converted to probabilities via softmax with temperature,
     then K flows are sampled without replacement.
@@ -23,12 +25,13 @@ from pathlib import Path
 
 
 # =============================================================================
-# Constants
+# Constants (Updated for Fat-Tree k=4)
 # =============================================================================
 
-NUM_FLOWS = 132
+NUM_HOSTS = 16
+NUM_FLOWS = NUM_HOSTS * (NUM_HOSTS - 1)  # 240
 NUM_FEATURES = 9
-K_CRITICAL = 8  # Number of flows to select
+K_CRITICAL = 12  # Number of flows to select (12 of 60 packets = 20%)
 
 
 # =============================================================================
@@ -145,6 +148,22 @@ class PolicyNetwork(nn.Module):
         
         return selected_flows, log_prob
     
+    def sample_action(
+        self,
+        logits: torch.Tensor,
+        k: int = K_CRITICAL,
+        temperature: float = 1.0,
+    ) -> Tuple[List[int], torch.Tensor]:
+        """
+        Sample K flows from pre-computed logits.
+        
+        Alias for _sample_k_flows with different interface.
+        """
+        # Handle batch dimension
+        if logits.dim() == 2:
+            logits = logits.squeeze(0)
+        return self._sample_k_flows(logits, k, temperature)
+    
     def _sample_k_flows(
         self,
         scores: torch.Tensor,
@@ -237,16 +256,18 @@ class FlowWisePolicyNetwork(nn.Module):
     Architecture:
         Per-flow encoder (shared weights):
             9 features -> 64 -> 32 -> 1 score
-        Apply to all 132 flows -> 132 scores
+        Apply to all 240 flows -> 240 scores
     """
     
     def __init__(
         self,
+        num_flows: int = NUM_FLOWS,
         num_features: int = NUM_FEATURES,
         hidden_dims: List[int] = [64, 32],
     ):
         super().__init__()
         
+        self.num_flows = num_flows
         self.num_features = num_features
         
         # Shared encoder for each flow
@@ -287,6 +308,7 @@ class FlowWisePolicyNetwork(nn.Module):
     
     # Inherit get_action and other methods from PolicyNetwork
     get_action = PolicyNetwork.get_action
+    sample_action = PolicyNetwork.sample_action
     _sample_k_flows = PolicyNetwork._sample_k_flows
     evaluate_action = PolicyNetwork.evaluate_action
 
@@ -323,13 +345,52 @@ class ReinforceTrainer:
     
     def update(
         self,
+        reward: float,
+        log_prob: torch.Tensor,
+    ) -> float:
+        """
+        Simplified REINFORCE update using pre-computed log_prob.
+        
+        Args:
+            reward: Reward received
+            log_prob: Log probability of the action (from policy)
+        
+        Returns:
+            Loss value
+        """
+        # Update baseline
+        if not self.baseline_initialized:
+            self.baseline = reward
+            self.baseline_initialized = True
+        else:
+            self.baseline = self.baseline_decay * self.baseline + (1 - self.baseline_decay) * reward
+        
+        # Compute advantage
+        advantage = reward - self.baseline
+        
+        # Policy gradient loss
+        loss = -advantage * log_prob
+        
+        # Backprop
+        self.optimizer.zero_grad()
+        loss.backward()
+        
+        # Gradient clipping
+        torch.nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
+        
+        self.optimizer.step()
+        
+        return loss.item()
+    
+    def update_full(
+        self,
         features: torch.Tensor,
         selected_flows: List[int],
         reward: float,
         temperature: float = 1.0,
     ) -> dict:
         """
-        Perform one REINFORCE update.
+        Full REINFORCE update with entropy bonus.
         
         Args:
             features: Flow features used for action
@@ -408,12 +469,13 @@ class ReinforceTrainer:
 # =============================================================================
 
 if __name__ == "__main__":
-    print("Testing PolicyNetwork")
+    print("Testing PolicyNetwork (Fat-Tree)")
     print("=" * 50)
     
     # Create network
     policy = PolicyNetwork()
     print(f"\nNetwork architecture:")
+    print(f"  Topology: Fat-Tree k=4 ({NUM_HOSTS} hosts)")
     print(f"  Input: {policy.input_dim} ({NUM_FLOWS} flows × {NUM_FEATURES} features)")
     print(f"  Parameters: {sum(p.numel() for p in policy.parameters()):,}")
     
@@ -426,25 +488,25 @@ if __name__ == "__main__":
     print(f"  Score range: [{scores.min():.3f}, {scores.max():.3f}]")
     
     # Test action sampling
-    selected, log_prob = policy.get_action(features, k=8, temperature=1.0)
-    print(f"\nAction sampling (k=8):")
+    selected, log_prob = policy.get_action(features, k=K_CRITICAL, temperature=1.0)
+    print(f"\nAction sampling (k={K_CRITICAL}):")
     print(f"  Selected flows: {selected}")
     print(f"  Log prob: {log_prob.item():.4f}")
     
     # Test deterministic
-    selected_det, _ = policy.get_action(features, k=8, deterministic=True)
-    print(f"  Deterministic top-8: {selected_det}")
+    selected_det, _ = policy.get_action(features, k=K_CRITICAL, deterministic=True)
+    print(f"  Deterministic top-{K_CRITICAL}: {selected_det}")
     
     # Test trainer
     print("\nTesting REINFORCE update:")
     trainer = ReinforceTrainer(policy, lr=1e-4)
     
     for i in range(5):
-        selected, log_prob = policy.get_action(features, k=8, temperature=1.0)
+        selected, log_prob = policy.get_action(features, k=K_CRITICAL, temperature=1.0)
         reward = -np.random.uniform(0, 0.1)  # Fake reward
         
-        metrics = trainer.update(features, selected, reward, temperature=1.0)
-        print(f"  Step {i+1}: loss={metrics['loss']:.4f}, baseline={metrics['baseline']:.4f}")
+        loss = trainer.update(reward, log_prob)
+        print(f"  Step {i+1}: loss={loss:.4f}, baseline={trainer.baseline:.4f}")
     
     # Test flow-wise network
     print("\n" + "=" * 50)
@@ -456,5 +518,5 @@ if __name__ == "__main__":
     scores = flow_policy(features)
     print(f"Output shape: {scores.shape}")
     
-    selected, log_prob = flow_policy.get_action(features, k=8)
+    selected, log_prob = flow_policy.get_action(features, k=K_CRITICAL)
     print(f"Selected flows: {selected}")

@@ -32,6 +32,8 @@ import org.cloudbus.cloudsim.sdn.rl.LinkStatsCollector;
 /**
  * CFRRLTrainingRunner: Episode runner for CloudSim-in-the-loop RL training.
  * 
+ * Updated for FAT-TREE k=4 TOPOLOGY (16 hosts, 240 flows).
+ * 
  * This runner is designed to be called from Python as a subprocess for each
  * training episode. It:
  * 
@@ -63,17 +65,18 @@ import org.cloudbus.cloudsim.sdn.rl.LinkStatsCollector;
  *   17
  *   ...
  * 
- * @author CFR-RL Training Extension
+ * @author CFR-RL Training Extension (Fat-Tree)
  */
 public class CFRRLTrainingRunner {
     
     // ==================== CONFIGURATION ====================
-    private static final int K_CRITICAL = 8;           // Number of critical flows
-    private static final double RL_INTERVAL = 5.0;     // Monitoring interval (not for RL updates in training)
+    // Updated for Fat-Tree k=4: 16 hosts, 240 flows
+    private static final int K_CRITICAL = 12;           // Number of critical flows (12 of 60 = 20%)
+    private static final double RL_INTERVAL = 5.0;      // Monitoring interval (not for RL updates in training)
     
-    // Fixed topology files (Abilene)
-    private static final String PHYSICAL_FILE = "dataset-abilene/abilene-physical.json";
-    private static final String VIRTUAL_FILE = "dataset-abilene/abilene-virtual.json";
+    // Fat-Tree topology files
+    private static final String PHYSICAL_FILE = "dataset-fattree/fattree-physical.json";
+    private static final String VIRTUAL_FILE = "dataset-fattree/fattree-virtual.json";
     
     // Simulation state
     private static NetworkOperatingSystem nos;
@@ -89,6 +92,8 @@ public class CFRRLTrainingRunner {
             System.err.println("  workload.csv: Path to episode workload file");
             System.err.println("  critical_flows.txt: Path to file with critical flow IDs (one per line)");
             System.err.println("  output_dir: Directory for output files (default: outputs/)");
+            System.err.println("");
+            System.err.println("Topology: Fat-Tree k=4 (16 hosts, 240 flows)");
             System.exit(1);
         }
         
@@ -107,7 +112,7 @@ public class CFRRLTrainingRunner {
         // Initialize logging (minimal for training)
         String logFile = outputDir + "episode.log";
         CFRRLLogger.init(logFile);
-        CFRRLLogger.info("TrainingRunner", "=== EPISODE START ===");
+        CFRRLLogger.info("TrainingRunner", "=== EPISODE START (Fat-Tree k=4) ===");
         CFRRLLogger.info("TrainingRunner", "Workload: " + workloadFile);
         CFRRLLogger.info("TrainingRunner", "Critical flows: " + criticalFlowsFile);
         CFRRLLogger.info("TrainingRunner", "Output dir: " + outputDir);
@@ -135,7 +140,8 @@ public class CFRRLTrainingRunner {
             HostFactory hostFactory = new HostFactorySimple();
             nos = new NetworkOperatingSystemSimple();
             
-            // Load physical topology
+            // Load physical topology (Fat-Tree)
+            CFRRLLogger.info("TrainingRunner", "Loading Fat-Tree topology: " + PHYSICAL_FILE);
             PhysicalTopologyParser.loadPhysicalTopologySingleDC(PHYSICAL_FILE, nos, hostFactory);
             CFRRLLogger.info("TrainingRunner", "Physical topology loaded: " + nos.getHostList().size() + " hosts");
             

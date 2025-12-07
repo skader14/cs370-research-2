@@ -1,6 +1,8 @@
 """
 cloudsim_trainer.py - Main training loop for CloudSim-in-the-loop RL.
 
+Updated for Fat-Tree topology (16 hosts, 240 flows).
+
 This script:
 1. Generates random workloads for each episode
 2. Uses the policy network to select K critical flows
@@ -25,10 +27,13 @@ import numpy as np
 import torch
 import pandas as pd
 
-from workload_generator import generate_workload, save_workload, generate_demand_vector, get_workload_stats, load_workload
+from workload_generator import (
+    generate_workload, save_workload, generate_demand_vector, 
+    get_workload_stats, load_workload, NUM_FLOWS, NUM_HOSTS
+)
 from episode_runner import EpisodeRunner, compute_reward
-from feature_extractor import FeatureExtractor, NUM_FLOWS
-from policy_network import PolicyNetwork, FlowWisePolicyNetwork, ReinforceTrainer, K_CRITICAL
+from feature_extractor import FeatureExtractor
+from policy_network import PolicyNetwork, ReinforceTrainer
 
 
 # =============================================================================
@@ -36,20 +41,21 @@ from policy_network import PolicyNetwork, FlowWisePolicyNetwork, ReinforceTraine
 # =============================================================================
 
 class TrainingConfig:
-    """Training configuration with defaults."""
+    """Training configuration with defaults for Fat-Tree topology."""
     
     # Episode settings
     num_episodes: int = 500
-    packets_per_episode: int = 50         # Match original Abilene (~51)
-    episode_duration: float = 20.0        # Match original (~20 seconds)
+    packets_per_episode: int = 60         # Fat-tree has 16 hosts
+    episode_duration: float = 20.0        # Simulation duration (seconds)
     
     # Policy settings
-    k_critical: int = 8
+    k_critical: int = 12                  # 12 of 60 = 20%
     num_features: int = 9
+    num_flows: int = NUM_FLOWS            # 240 for fat-tree
     hidden_dims: list = [512, 256, 128]
     
     # Workload settings
-    difficulty: str = 'mixed'             # 'easy', 'mixed', or 'hard'
+    flow_selection: str = 'balanced'      # 'balanced', 'inter_pod', 'all'
     
     # Training settings
     learning_rate: float = 1e-4
@@ -164,7 +170,7 @@ class CloudSimTrainer:
         
         # Initialize components
         self.policy = PolicyNetwork(
-            num_flows=NUM_FLOWS,
+            num_flows=config.num_flows,
             num_features=config.num_features,
             hidden_dims=config.hidden_dims,
         ).to(self.device)
@@ -199,63 +205,61 @@ class CloudSimTrainer:
         # Save config
         config_path = self.output_dir / "config.json"
         with open(config_path, 'w') as f:
-            json.dump(config.to_dict(), f, indent=2)
+            json.dump(config.to_dict(), f, indent=2, default=str)
         
-        print(f"CloudSimTrainer initialized")
+        print("CloudSimTrainer initialized")
+        print(f"  Topology: Fat-Tree k=4 ({NUM_HOSTS} hosts, {NUM_FLOWS} flows)")
         print(f"  Device: {self.device}")
         print(f"  Output dir: {self.output_dir}")
         print(f"  Policy parameters: {sum(p.numel() for p in self.policy.parameters()):,}")
     
-    def train(self, num_episodes: Optional[int] = None) -> None:
-        """Run training loop."""
-        num_episodes = num_episodes or self.config.num_episodes
-        start_episode = self.episode
+    def save_checkpoint(self, path: str, is_best: bool = False) -> None:
+        """Save training checkpoint."""
+        checkpoint = {
+            'episode': self.episode,
+            'model_state_dict': self.policy.state_dict(),
+            'optimizer_state_dict': self.trainer.optimizer.state_dict(),
+            'baseline': self.trainer.baseline,
+            'temperature': self.temperature,
+            'best_reward': self.best_reward,
+            'config': self.config.to_dict(),
+        }
+        torch.save(checkpoint, path)
         
-        print(f"\nStarting training from episode {start_episode} to {start_episode + num_episodes}")
-        print("=" * 70)
-        
-        for ep in range(start_episode, start_episode + num_episodes):
-            self.episode = ep
-            metrics = self._run_episode(ep)
-            
-            if metrics['success']:
-                # Log metrics
-                self.logger.log(ep, metrics)
-                
-                # Print progress
-                self._print_progress(ep, metrics)
-                
-                # Checkpoint
-                if (ep + 1) % self.config.checkpoint_freq == 0:
-                    self._save_checkpoint(f"checkpoint_ep{ep+1}.pt")
-                
-                # Track best
-                if metrics['reward'] > self.best_reward:
-                    self.best_reward = metrics['reward']
-                    self._save_checkpoint("best_model.pt")
-                    print(f"    ★ New best reward: {self.best_reward:.6f}")
-            else:
-                print(f"  Episode {ep} FAILED: {metrics.get('error', 'Unknown error')}")
-            
-            # Decay temperature
-            self.temperature = max(
-                self.config.temperature_end,
-                self.temperature * self.config.temperature_decay
-            )
-        
-        # Final checkpoint
-        self._save_checkpoint("final_model.pt")
-        print("\n" + "=" * 70)
-        print("Training complete!")
-        print(f"  Best reward: {self.best_reward:.6f}")
-        print(f"  Final checkpoint: {self.checkpoint_dir}/final_model.pt")
+        if is_best:
+            best_path = self.checkpoint_dir / "best_model.pt"
+            torch.save(checkpoint, best_path)
     
-    def _run_episode(self, episode_id: int) -> Dict[str, Any]:
-        """Run a single training episode."""
+    def load_checkpoint(self, path: str) -> None:
+        """Load training checkpoint."""
+        checkpoint = torch.load(path, map_location=self.device)
         
-        # Check for existing workload file (for testing)
-        existing_workload = getattr(self.config, 'existing_workload', None)
+        self.policy.load_state_dict(checkpoint['model_state_dict'])
+        self.trainer.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.trainer.baseline = checkpoint['baseline']
+        self.temperature = checkpoint['temperature']
+        self.best_reward = checkpoint['best_reward']
+        self.episode = checkpoint['episode']
         
+        print(f"Loaded checkpoint from {path}")
+        print(f"  Resuming from episode {self.episode}")
+        print(f"  Best reward: {self.best_reward:.4f}")
+    
+    def run_episode(
+        self,
+        episode_id: int,
+        existing_workload: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Run a single training episode.
+        
+        Args:
+            episode_id: Episode number
+            existing_workload: Path to existing workload file (optional)
+        
+        Returns:
+            Dictionary with episode results
+        """
         if existing_workload:
             # Use existing workload file
             workload_path = Path(self.config.cloudsim_dir) / existing_workload
@@ -267,8 +271,8 @@ class CloudSimTrainer:
             workload_df = generate_workload(
                 num_packets=self.config.packets_per_episode,
                 duration=self.config.episode_duration,
-                difficulty=self.config.difficulty,
                 seed=None,  # Truly random
+                flow_selection=self.config.flow_selection,
             )
             
             # Save workload
@@ -279,181 +283,182 @@ class CloudSimTrainer:
             save_workload(workload_df, str(workload_path))
         
         # 2. Extract features
-        demand = generate_demand_vector(workload_df)
-        features = self.feature_extractor.extract_features(demand)
-        features_tensor = torch.tensor(features, dtype=torch.float32, device=self.device)
+        demand_vector = generate_demand_vector(workload_df)
+        features = self.feature_extractor.extract_features(demand_vector)
+        features_tensor = torch.FloatTensor(features).unsqueeze(0).to(self.device)
         
-        # 3. Select critical flows
-        selected_flows, log_prob = self.policy.get_action(
-            features_tensor,
+        # 3. Get policy action (select K critical flows)
+        # Note: Don't use no_grad here - we need gradients for REINFORCE
+        logits = self.policy(features_tensor)
+        
+        # Sample with temperature
+        selected_flows, log_prob = self.policy.sample_action(
+            logits, 
             k=self.config.k_critical,
             temperature=self.temperature,
         )
         
         # 4. Run CloudSim episode
+        output_dir = str(self.output_dir / episode_dir)
         results = self.episode_runner.run_episode(
-            workload_file=str(workload_path.relative_to(Path(self.config.cloudsim_dir))),
+            workload_file=str(workload_path),
             critical_flows=selected_flows,
-            output_dir=str((self.output_dir / episode_dir).relative_to(Path(self.config.cloudsim_dir))),
+            output_dir=output_dir,
             episode_id=episode_id,
         )
         
-        if not results['success']:
-            return results
+        if not results.get('success', False):
+            print(f"  Episode {episode_id} FAILED: {results.get('error', 'Unknown error')}")
+            return {'success': False, 'reward': -10.0}
         
         # 5. Compute reward
-        episode_summary = results['episode_summary']
+        episode_summary = results.get('episode_summary', {})
         reward = compute_reward(
-            episode_summary,
+            episode_summary=episode_summary,
             queuing_weight=self.config.queuing_weight,
             drop_penalty=self.config.drop_penalty,
         )
         
-        # 6. Update policy
-        update_metrics = self.trainer.update(
-            features_tensor,
-            selected_flows,
-            reward,
-            temperature=self.temperature,
-        )
+        # 6. Update feature extractor with flow statistics
+        flow_summary = results.get('flow_summary')
+        if flow_summary is not None and not flow_summary.empty:
+            self.feature_extractor.update_historical_features(flow_summary)
         
-        # 7. Update feature extractor history
-        self.feature_extractor.update_history(
-            results['flow_summary'],
-            results['link_stats'],
-            episode_summary,
-        )
-        
-        # 8. Compile metrics
-        metrics = {
+        return {
             'success': True,
             'reward': reward,
-            'mean_queuing_ms': episode_summary.get('mean_queuing_ms', 0),
-            'max_queuing_ms': episode_summary.get('max_queuing_ms', 0),
-            'drop_rate': episode_summary.get('drop_rate', 0),
-            'total_packets': episode_summary.get('total_packets', 0),
-            'num_flows_active': episode_summary.get('num_flows_active', 0),
-            'temperature': self.temperature,
-            'wall_time_ms': results['wall_time_ms'],
+            'log_prob': log_prob,
             'selected_flows': selected_flows,
-            **update_metrics,
+            'episode_summary': episode_summary,
+            'demand_vector': demand_vector,
+            'wall_time_ms': results.get('wall_time_ms', 0),
         }
+    
+    def train(self, start_episode: int = 0, end_episode: int = None) -> None:
+        """
+        Run training loop.
         
-        # Clean up episode files to save space (keep every 100th for debugging)
-        if episode_id % 100 != 0:
-            self.episode_runner.cleanup_episode(
-                str((self.output_dir / episode_dir).relative_to(Path(self.config.cloudsim_dir)))
+        Args:
+            start_episode: Starting episode number
+            end_episode: Ending episode number (exclusive)
+        """
+        if end_episode is None:
+            end_episode = self.config.num_episodes
+        
+        print(f"Starting training from episode {start_episode} to {end_episode}")
+        print("=" * 70)
+        
+        for episode_id in range(start_episode, end_episode):
+            self.episode = episode_id
+            
+            # Run episode
+            results = self.run_episode(episode_id)
+            
+            if not results.get('success', False):
+                continue
+            
+            reward = results['reward']
+            log_prob = results['log_prob']
+            episode_summary = results.get('episode_summary', {})
+            
+            # Policy update
+            loss = self.trainer.update(reward, log_prob)
+            
+            # Update temperature
+            self.temperature = max(
+                self.config.temperature_end,
+                self.temperature * self.config.temperature_decay
             )
+            
+            # Log metrics
+            metrics = {
+                'reward': reward,
+                'mean_queuing_ms': episode_summary.get('mean_queuing_ms', 0),
+                'drop_rate': episode_summary.get('drop_rate', 0),
+                'loss': loss,
+                'baseline': self.trainer.baseline,
+                'temperature': self.temperature,
+                'wall_time_ms': results.get('wall_time_ms', 0),
+                'total_packets': episode_summary.get('total_packets', 0),
+                'num_flows_active': episode_summary.get('num_flows_active', 0),
+            }
+            self.logger.log(episode_id, metrics)
+            
+            # Console output
+            stats = self.logger.get_recent_stats(10)
+            print(f"[Ep {episode_id:4d}] R={reward:.4f} Q={metrics['mean_queuing_ms']:.1f}ms "
+                  f"D={metrics['drop_rate']:.4f} T={self.temperature:.3f} | "
+                  f"Avg10: R={stats.get('mean_reward', 0):.4f}")
+            
+            # Track best model
+            if reward > self.best_reward:
+                self.best_reward = reward
+                self.save_checkpoint(
+                    str(self.checkpoint_dir / "best_model.pt"),
+                    is_best=True
+                )
+                print(f"    ★ New best reward: {reward:.6f}")
+            
+            # Periodic checkpoint
+            if (episode_id + 1) % self.config.checkpoint_freq == 0:
+                self.save_checkpoint(
+                    str(self.checkpoint_dir / f"checkpoint_ep{episode_id:04d}.pt")
+                )
         
-        # Always clean up CloudSim's auto-generated result directories
-        self.episode_runner.cleanup_cloudsim_results()
+        # Final checkpoint
+        self.save_checkpoint(str(self.checkpoint_dir / "final_model.pt"))
         
-        return metrics
-    
-    def _print_progress(self, episode: int, metrics: dict) -> None:
-        """Print training progress."""
-        recent = self.logger.get_recent_stats(10)
-        
-        print(f"[Ep {episode:4d}] "
-              f"R={metrics['reward']:+.4f} "
-              f"Q={metrics['mean_queuing_ms']:.1f}ms "
-              f"D={metrics['drop_rate']:.4f} "
-              f"T={metrics['temperature']:.3f} "
-              f"| Avg10: R={recent.get('mean_reward', 0):+.4f}")
-    
-    def _save_checkpoint(self, filename: str) -> None:
-        """Save training checkpoint."""
-        path = self.checkpoint_dir / filename
-        
-        checkpoint = {
-            'episode': self.episode,
-            'policy_state_dict': self.policy.state_dict(),
-            'optimizer_state_dict': self.trainer.optimizer.state_dict(),
-            'baseline': self.trainer.baseline,
-            'temperature': self.temperature,
-            'best_reward': self.best_reward,
-            'config': self.config.to_dict(),
-        }
-        
-        torch.save(checkpoint, path)
-    
-    def load_checkpoint(self, filepath: str) -> None:
-        """Load training checkpoint."""
-        checkpoint = torch.load(filepath, map_location=self.device)
-        
-        self.policy.load_state_dict(checkpoint['policy_state_dict'])
-        self.trainer.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.trainer.baseline = checkpoint['baseline']
-        self.trainer.baseline_initialized = True
-        self.temperature = checkpoint['temperature']
-        self.best_reward = checkpoint['best_reward']
-        self.episode = checkpoint['episode']
-        
-        print(f"Loaded checkpoint from {filepath}")
-        print(f"  Episode: {self.episode}")
+        print("=" * 70)
+        print("Training complete!")
         print(f"  Best reward: {self.best_reward:.6f}")
-        print(f"  Temperature: {self.temperature:.4f}")
+        print(f"  Final checkpoint: {self.checkpoint_dir}/final_model.pt")
+
+
+# =============================================================================
+# Evaluation
+# =============================================================================
+
+def evaluate_policy(
+    trainer: CloudSimTrainer,
+    num_episodes: int = 50,
+    use_random_baseline: bool = False,
+) -> Dict[str, float]:
+    """
+    Evaluate a trained policy.
     
-    def evaluate(self, num_episodes: int = 10) -> Dict[str, float]:
-        """Evaluate current policy without training."""
-        print(f"\nEvaluating over {num_episodes} episodes...")
+    Args:
+        trainer: CloudSimTrainer with loaded policy
+        num_episodes: Number of evaluation episodes
+        use_random_baseline: If True, use random policy instead
+    
+    Returns:
+        Dictionary with evaluation statistics
+    """
+    rewards = []
+    queuing_delays = []
+    drop_rates = []
+    
+    # Set to eval mode (no gradient)
+    trainer.policy.eval()
+    
+    for ep in range(num_episodes):
+        results = trainer.run_episode(
+            episode_id=10000 + ep,  # Offset to avoid training episodes
+        )
         
-        rewards = []
-        queuing_times = []
-        
-        self.policy.eval()
-        
-        with torch.no_grad():
-            for ep in range(num_episodes):
-                # Generate workload
-                workload_df = generate_workload(
-                    num_packets=self.config.packets_per_episode,
-                    duration=self.config.episode_duration,
-                    difficulty=self.config.difficulty,
-                )
-                
-                # Extract features
-                demand = generate_demand_vector(workload_df)
-                features = self.feature_extractor.extract_features(demand)
-                features_tensor = torch.tensor(features, dtype=torch.float32, device=self.device)
-                
-                # Deterministic action
-                selected_flows, _ = self.policy.get_action(
-                    features_tensor,
-                    k=self.config.k_critical,
-                    deterministic=True,
-                )
-                
-                # Save workload and run
-                workload_file = f"eval_ep_{ep}.csv"
-                save_workload(workload_df, str(self.output_dir / workload_file))
-                
-                results = self.episode_runner.run_episode(
-                    workload_file=str((self.output_dir / workload_file).relative_to(Path(self.config.cloudsim_dir))),
-                    critical_flows=selected_flows,
-                    output_dir=str((self.output_dir / f"eval_ep_{ep}").relative_to(Path(self.config.cloudsim_dir))),
-                )
-                
-                if results['success']:
-                    reward = compute_reward(results['episode_summary'])
-                    rewards.append(reward)
-                    queuing_times.append(results['episode_summary'].get('mean_queuing_ms', 0))
-        
-        self.policy.train()
-        
-        stats = {
-            'mean_reward': np.mean(rewards) if rewards else 0,
-            'std_reward': np.std(rewards) if rewards else 0,
-            'mean_queuing_ms': np.mean(queuing_times) if queuing_times else 0,
-            'success_rate': len(rewards) / num_episodes,
-        }
-        
-        print(f"Evaluation results:")
-        print(f"  Mean reward: {stats['mean_reward']:.6f} ± {stats['std_reward']:.6f}")
-        print(f"  Mean queuing: {stats['mean_queuing_ms']:.2f} ms")
-        print(f"  Success rate: {stats['success_rate']:.1%}")
-        
-        return stats
+        if results.get('success', False):
+            rewards.append(results['reward'])
+            summary = results.get('episode_summary', {})
+            queuing_delays.append(summary.get('mean_queuing_ms', 0))
+            drop_rates.append(summary.get('drop_rate', 0))
+    
+    return {
+        'mean_reward': np.mean(rewards),
+        'std_reward': np.std(rewards),
+        'mean_queuing_ms': np.mean(queuing_delays),
+        'mean_drop_rate': np.mean(drop_rates),
+        'num_episodes': len(rewards),
+    }
 
 
 # =============================================================================
@@ -461,26 +466,26 @@ class CloudSimTrainer:
 # =============================================================================
 
 def main():
-    parser = argparse.ArgumentParser(description="CloudSim-in-the-loop RL Training")
+    parser = argparse.ArgumentParser(description="CFR-RL CloudSim Training (Fat-Tree)")
     
-    # Required arguments
-    parser.add_argument("--cloudsim-dir", type=str, default=".",
+    # Required
+    parser.add_argument("--cloudsim-dir", type=str, required=True,
                        help="Path to CloudSimSDN project directory")
     
     # Training settings
     parser.add_argument("--episodes", type=int, default=500,
                        help="Number of training episodes")
-    parser.add_argument("--packets", type=int, default=50,
-                       help="Packets per episode (default: 50, matching original Abilene)")
+    parser.add_argument("--packets", type=int, default=60,
+                       help="Packets per episode (default: 60 for fat-tree)")
     parser.add_argument("--duration", type=float, default=20.0,
-                       help="Episode duration in seconds (default: 20, matching original Abilene)")
-    parser.add_argument("--k-critical", type=int, default=8,
+                       help="Episode duration in seconds")
+    parser.add_argument("--k-critical", type=int, default=12,
                        help="Number of critical flows to select (K)")
-    parser.add_argument("--difficulty", type=str, default="mixed",
-                       choices=["easy", "mixed", "hard"],
-                       help="Workload difficulty: easy (good flows only), mixed (good + stress), hard (all flows)")
     parser.add_argument("--lr", type=float, default=1e-4,
                        help="Learning rate")
+    parser.add_argument("--flow-selection", type=str, default='balanced',
+                       choices=['balanced', 'inter_pod', 'all'],
+                       help="Flow selection strategy for workload generation")
     
     # Output
     parser.add_argument("--output-dir", type=str, default="training_outputs",
@@ -502,7 +507,7 @@ def main():
         packets_per_episode=args.packets,
         episode_duration=args.duration,
         k_critical=args.k_critical,
-        difficulty=args.difficulty,
+        flow_selection=args.flow_selection,
         learning_rate=args.lr,
         cloudsim_dir=args.cloudsim_dir,
         output_dir=args.output_dir,
@@ -515,14 +520,23 @@ def main():
     if args.resume:
         trainer.load_checkpoint(args.resume)
     
-    # Train or evaluate
+    # Evaluation mode
     if args.eval_only:
         if not args.resume:
-            print("ERROR: --eval-only requires --resume to specify model checkpoint")
+            print("Error: --eval-only requires --resume")
             return
-        trainer.evaluate(num_episodes=20)
-    else:
-        trainer.train()
+        
+        print("Running evaluation...")
+        stats = evaluate_policy(trainer, num_episodes=50)
+        print("\nEvaluation Results:")
+        print(f"  Mean reward: {stats['mean_reward']:.4f} ± {stats['std_reward']:.4f}")
+        print(f"  Mean queuing: {stats['mean_queuing_ms']:.2f} ms")
+        print(f"  Mean drop rate: {stats['mean_drop_rate']:.4f}")
+        return
+    
+    # Training mode
+    start_ep = trainer.episode if args.resume else 0
+    trainer.train(start_episode=start_ep, end_episode=args.episodes)
 
 
 if __name__ == "__main__":
