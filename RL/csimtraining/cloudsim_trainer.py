@@ -45,8 +45,8 @@ class TrainingConfig:
     
     # Episode settings
     num_episodes: int = 500
-    packets_per_episode: int = 60         # Fat-tree has 16 hosts
-    episode_duration: float = 20.0        # Simulation duration (seconds)
+    packets_per_episode: int = 100        # More packets for congestion
+    episode_duration: float = 10.0        # Shorter duration = higher burst rate
     
     # Policy settings
     k_critical: int = 12                  # 12 of 60 = 20%
@@ -55,7 +55,8 @@ class TrainingConfig:
     hidden_dims: list = [512, 256, 128]
     
     # Workload settings
-    flow_selection: str = 'balanced'      # 'balanced', 'inter_pod', 'all'
+    flow_selection: str = 'balanced'      # 'balanced', 'inter_pod', 'all' (legacy)
+    traffic_model: str = 'hotspot'        # 'uniform', 'hotspot', 'gravity', 'skewed'
     
     # Training settings
     learning_rate: float = 1e-4
@@ -75,6 +76,7 @@ class TrainingConfig:
     # Checkpointing
     checkpoint_freq: int = 50
     eval_freq: int = 10
+    save_episode_freq: int = 50          # Save episode data every N episodes (0 = never)
     
     # Paths
     cloudsim_dir: str = "."
@@ -266,17 +268,27 @@ class CloudSimTrainer:
             episode_dir = f"episodes/ep_{episode_id:04d}"
             workload_df = load_workload(str(workload_path))
             workload_file = existing_workload
+            should_save = True  # Always save when using existing workload
         else:
+            # Determine if we should save this episode's data
+            save_freq = self.config.save_episode_freq
+            should_save = save_freq > 0 and (episode_id % save_freq == 0)
+            
+            # Use temp folder for non-saved episodes, permanent folder for saved ones
+            if should_save:
+                episode_dir = f"episodes/ep_{episode_id:04d}"
+            else:
+                episode_dir = "episodes/temp"
+            
             # 1. Generate random workload
             workload_df = generate_workload(
                 num_packets=self.config.packets_per_episode,
                 duration=self.config.episode_duration,
                 seed=None,  # Truly random
-                flow_selection=self.config.flow_selection,
+                traffic_model=self.config.traffic_model,
             )
             
             # Save workload
-            episode_dir = f"episodes/ep_{episode_id:04d}"
             workload_file = f"{episode_dir}/workload.csv"
             workload_path = self.output_dir / workload_file
             workload_path.parent.mkdir(parents=True, exist_ok=True)
@@ -312,6 +324,12 @@ class CloudSimTrainer:
         
         if not results.get('success', False):
             print(f"  Episode {episode_id} FAILED: {results.get('error', 'Unknown error')}")
+            # Clean up temp folder on failure too
+            if not should_save:
+                temp_dir = self.output_dir / "episodes" / "temp"
+                if temp_dir.exists():
+                    import shutil
+                    shutil.rmtree(temp_dir)
             return {'success': False, 'reward': -10.0}
         
         # 5. Compute reward
@@ -326,6 +344,13 @@ class CloudSimTrainer:
         flow_summary = results.get('flow_summary')
         if flow_summary is not None and not flow_summary.empty:
             self.feature_extractor.update_historical_features(flow_summary)
+        
+        # 7. Clean up temp episode folder if not saving
+        if not should_save:
+            temp_dir = self.output_dir / "episodes" / "temp"
+            if temp_dir.exists():
+                import shutil
+                shutil.rmtree(temp_dir)
         
         return {
             'success': True,
@@ -478,17 +503,22 @@ def main():
     # Training settings
     parser.add_argument("--episodes", type=int, default=500,
                        help="Number of training episodes")
-    parser.add_argument("--packets", type=int, default=60,
-                       help="Packets per episode (default: 60 for fat-tree)")
-    parser.add_argument("--duration", type=float, default=20.0,
-                       help="Episode duration in seconds")
+    parser.add_argument("--packets", type=int, default=100,
+                       help="Packets per episode (default: 100)")
+    parser.add_argument("--duration", type=float, default=10.0,
+                       help="Episode duration in seconds (default: 10)")
     parser.add_argument("--k-critical", type=int, default=12,
                        help="Number of critical flows to select (K)")
     parser.add_argument("--lr", type=float, default=1e-4,
                        help="Learning rate")
     parser.add_argument("--flow-selection", type=str, default='balanced',
                        choices=['balanced', 'inter_pod', 'all'],
-                       help="Flow selection strategy for workload generation")
+                       help="Flow selection strategy (legacy, use --traffic-model instead)")
+    parser.add_argument("--traffic-model", type=str, default='hotspot',
+                       choices=['uniform', 'hotspot', 'gravity', 'skewed'],
+                       help="Traffic model: uniform, hotspot, gravity, skewed (default: hotspot)")
+    parser.add_argument("--save-episode-freq", type=int, default=50,
+                       help="Save episode data every N episodes (0=never, default=50)")
     
     # Output
     parser.add_argument("--output-dir", type=str, default="training_outputs",
@@ -510,8 +540,9 @@ def main():
         packets_per_episode=args.packets,
         episode_duration=args.duration,
         k_critical=args.k_critical,
-        flow_selection=args.flow_selection,
+        traffic_model=args.traffic_model,
         learning_rate=args.lr,
+        save_episode_freq=args.save_episode_freq,
         cloudsim_dir=args.cloudsim_dir,
         output_dir=args.output_dir,
     )

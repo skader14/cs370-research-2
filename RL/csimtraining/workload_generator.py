@@ -1,17 +1,18 @@
 """
-workload_generator.py - Generate random workloads for CloudSim training episodes.
+workload_generator.py - Generate workloads for CloudSim training episodes.
 
-Updated for Fat-Tree k=4 topology (16 hosts, 240 flows).
+Updated for Fat-Tree k=4 topology with HOTSPOT and GRAVITY traffic models.
 
-Fat-tree properties:
-- Full bisection bandwidth
-- Multiple paths for ALL inter-pod flows (4 paths)
-- Multiple paths for intra-pod flows (2 paths)
-- No "bad" flows - all flows can be routed effectively
+Key insight: For CFR-RL to learn, we need:
+1. Uneven congestion - some paths heavily loaded, others free
+2. Path diversity - fat-tree provides 2-4 equal-cost paths
+3. Learnable patterns - policy can identify flows that benefit from rerouting
 
-CloudSim workload format (CSV with header):
-    start,source,z,w1,link,dest,psize,w2
-    0.4,vm_7,0,1,flow_84,vm_8,146676818,1
+Traffic Models:
+- UNIFORM: Random traffic (baseline, not useful for learning)
+- HOTSPOT: Heavy traffic between specific host pairs, creates bottlenecks
+- GRAVITY: Traffic proportional to host "weight", realistic datacenter pattern
+- STRIDE: Deterministic pattern that stresses specific links
 """
 
 import numpy as np
@@ -51,14 +52,7 @@ def get_host_edge(host_id: int) -> int:
 
 
 def get_flow_type(src: int, dst: int) -> str:
-    """
-    Classify a flow by its path characteristics.
-    
-    Returns:
-        'intra_edge': Same edge switch (1 path, 2 hops)
-        'intra_pod': Same pod, different edge (2 paths, 4 hops)
-        'inter_pod': Different pods (4 paths, 6 hops)
-    """
+    """Classify a flow by its path characteristics."""
     src_pod = get_host_pod(src)
     dst_pod = get_host_pod(dst)
     
@@ -83,17 +77,6 @@ def get_num_paths(src: int, dst: int) -> int:
         return 2
     else:
         return 4
-
-
-def get_path_length(src: int, dst: int) -> int:
-    """Get the path length in hops for a flow."""
-    flow_type = get_flow_type(src, dst)
-    if flow_type == 'intra_edge':
-        return 2
-    elif flow_type == 'intra_pod':
-        return 4
-    else:
-        return 6
 
 
 def flow_id_to_nodes(flow_id: int) -> Tuple[int, int]:
@@ -126,7 +109,6 @@ def _classify_all_flows() -> Dict[str, List[int]]:
     return flows
 
 
-# Pre-compute at module load
 FLOWS_BY_TYPE = _classify_all_flows()
 INTER_POD_FLOWS = FLOWS_BY_TYPE['inter_pod']    # 192 flows with 4 paths each
 INTRA_POD_FLOWS = FLOWS_BY_TYPE['intra_pod']    # 32 flows with 2 paths each
@@ -135,86 +117,198 @@ MULTI_PATH_FLOWS = INTER_POD_FLOWS + INTRA_POD_FLOWS  # 224 flows with 2+ paths
 
 
 # =============================================================================
-# Workload Generation
+# Traffic Pattern Generators
+# =============================================================================
+
+def generate_hotspot_weights(
+    rng: np.random.Generator,
+    num_hotspots: int = 3,
+    hotspot_intensity: float = 10.0,
+) -> np.ndarray:
+    """
+    Generate flow weights with hotspot pattern.
+    
+    Creates a few high-traffic "hotspot" flows that will congest specific links,
+    while other flows have lower background traffic.
+    
+    Args:
+        rng: Random number generator
+        num_hotspots: Number of hotspot host pairs (creates concentrated traffic)
+        hotspot_intensity: How much more traffic hotspots generate vs background
+    
+    Returns:
+        Array of shape (NUM_FLOWS,) with relative traffic weights
+    """
+    weights = np.ones(NUM_FLOWS)
+    
+    # Select hotspot source-destination pairs (prefer inter-pod for max impact)
+    # Hotspots should be inter-pod flows that share core links
+    hotspot_flows = rng.choice(INTER_POD_FLOWS, size=min(num_hotspots, len(INTER_POD_FLOWS)), replace=False)
+    
+    for flow_id in hotspot_flows:
+        weights[flow_id] = hotspot_intensity
+        
+        # Also boost flows that share the same source or destination (creates realistic pattern)
+        src, dst = flow_id_to_nodes(flow_id)
+        for other_flow in range(NUM_FLOWS):
+            other_src, other_dst = flow_id_to_nodes(other_flow)
+            if other_src == src or other_dst == dst:
+                weights[other_flow] = max(weights[other_flow], hotspot_intensity * 0.5)
+    
+    return weights / weights.sum()  # Normalize to probability distribution
+
+
+def generate_gravity_weights(
+    rng: np.random.Generator,
+    weight_variance: float = 2.0,
+) -> np.ndarray:
+    """
+    Generate flow weights using gravity model.
+    
+    Traffic between hosts i and j is proportional to: weight[i] * weight[j]
+    This creates realistic datacenter traffic where some hosts are busier than others.
+    
+    Args:
+        rng: Random number generator  
+        weight_variance: How much host weights vary (higher = more skewed)
+    
+    Returns:
+        Array of shape (NUM_FLOWS,) with relative traffic weights
+    """
+    # Assign random "importance" weights to each host
+    # Use log-normal distribution for realistic skew (some hosts much busier)
+    host_weights = rng.lognormal(mean=0, sigma=weight_variance, size=NUM_HOSTS)
+    
+    # Flow weight = src_weight * dst_weight (gravity model)
+    flow_weights = np.zeros(NUM_FLOWS)
+    for flow_id in range(NUM_FLOWS):
+        src, dst = flow_id_to_nodes(flow_id)
+        flow_weights[flow_id] = host_weights[src] * host_weights[dst]
+    
+    return flow_weights / flow_weights.sum()
+
+
+def generate_stride_weights(stride: int = 4) -> np.ndarray:
+    """
+    Generate flow weights using stride pattern.
+    
+    Host i sends to host (i + stride) mod NUM_HOSTS.
+    This is a deterministic pattern that stresses specific links predictably.
+    
+    Args:
+        stride: Offset for destination selection
+    
+    Returns:
+        Array of shape (NUM_FLOWS,) with relative traffic weights (0 or 1)
+    """
+    weights = np.zeros(NUM_FLOWS)
+    
+    for src in range(NUM_HOSTS):
+        dst = (src + stride) % NUM_HOSTS
+        if src != dst:
+            flow_id = nodes_to_flow_id(src, dst)
+            weights[flow_id] = 1.0
+    
+    # Normalize
+    if weights.sum() > 0:
+        weights = weights / weights.sum()
+    
+    return weights
+
+
+def generate_skewed_weights(
+    rng: np.random.Generator,
+    skew_factor: float = 0.8,
+) -> np.ndarray:
+    """
+    Generate flow weights with power-law skew.
+    
+    A few flows get most of the traffic (realistic for many workloads).
+    
+    Args:
+        rng: Random number generator
+        skew_factor: Pareto shape parameter (lower = more skewed)
+    
+    Returns:
+        Array of shape (NUM_FLOWS,) with relative traffic weights
+    """
+    # Pareto distribution creates heavy tail
+    weights = rng.pareto(skew_factor, size=NUM_FLOWS)
+    return weights / weights.sum()
+
+
+# =============================================================================
+# Main Workload Generation
 # =============================================================================
 
 def generate_workload(
-    num_packets: int = 60,
-    duration: float = 20.0,
+    num_packets: int = 100,
+    duration: float = 10.0,
     seed: Optional[int] = None,
-    min_packet_size: int = 10_000,          # 10 KB
-    max_packet_size: int = 500_000,         # 500 KB
-    flow_selection: str = 'balanced',        # 'balanced', 'inter_pod', 'all'
-    flow_pool: Optional[List[int]] = None,
+    min_packet_size: int = 50_000,       # 50 KB
+    max_packet_size: int = 1_000_000,    # 1 MB
+    traffic_model: str = 'hotspot',      # 'uniform', 'hotspot', 'gravity', 'stride', 'skewed'
+    hotspot_count: int = 4,              # Number of hotspot pairs
+    hotspot_intensity: float = 15.0,     # Hotspot traffic multiplier
+    gravity_variance: float = 1.5,       # Gravity model variance
+    stride: int = 4,                     # Stride pattern offset
 ) -> pd.DataFrame:
     """
     Generate a random workload for one training episode.
     
-    Flow selection strategies:
-    - 'balanced': Mix of inter-pod (60%), intra-pod (30%), intra-edge (10%)
-    - 'inter_pod': Only inter-pod flows (max path diversity, 4 paths each)
-    - 'intra_pod': Only intra-pod flows (2 paths each)
-    - 'multi_path': Only flows with 2+ paths (excludes intra-edge)
-    - 'all': Uniform random from all 240 flows
+    Traffic Models:
+    - 'uniform': Random traffic across all flows (baseline)
+    - 'hotspot': Concentrated traffic on few host pairs (recommended for learning)
+    - 'gravity': Traffic proportional to host weights (realistic)
+    - 'stride': Deterministic pattern (useful for debugging)
+    - 'skewed': Power-law distribution (realistic web traffic)
     
     Args:
-        num_packets: Number of packets (= number of active flows)
+        num_packets: Number of packets to generate
         duration: Simulation duration in seconds
-        seed: Random seed
+        seed: Random seed for reproducibility
         min_packet_size: Minimum packet size in bytes
         max_packet_size: Maximum packet size in bytes
-        flow_selection: Strategy for selecting which flows are active
-        flow_pool: Custom list of flow IDs (overrides flow_selection)
+        traffic_model: Traffic distribution model
+        hotspot_count: Number of hotspot pairs (for 'hotspot' model)
+        hotspot_intensity: Traffic multiplier for hotspots
+        gravity_variance: Variance in host weights (for 'gravity' model)
+        stride: Destination offset (for 'stride' model)
     
     Returns:
-        DataFrame in CloudSim format
+        DataFrame in CloudSim workload format
     """
     rng = np.random.default_rng(seed)
     
-    # Determine flow pool
-    if flow_pool is not None:
-        available_flows = flow_pool
-        selected_flows = rng.choice(available_flows, size=min(num_packets, len(available_flows)), replace=False).tolist()
+    # Generate flow selection probabilities based on traffic model
+    if traffic_model == 'hotspot':
+        flow_weights = generate_hotspot_weights(rng, hotspot_count, hotspot_intensity)
+    elif traffic_model == 'gravity':
+        flow_weights = generate_gravity_weights(rng, gravity_variance)
+    elif traffic_model == 'stride':
+        flow_weights = generate_stride_weights(stride)
+    elif traffic_model == 'skewed':
+        flow_weights = generate_skewed_weights(rng)
+    else:  # 'uniform'
+        flow_weights = np.ones(NUM_FLOWS) / NUM_FLOWS
     
-    elif flow_selection == 'balanced':
-        # Weighted selection: 60% inter-pod, 30% intra-pod, 10% intra-edge
-        n_inter = int(num_packets * 0.6)
-        n_intra_pod = int(num_packets * 0.3)
-        n_intra_edge = num_packets - n_inter - n_intra_pod
-        
-        selected_flows = []
-        if n_inter > 0 and len(INTER_POD_FLOWS) >= n_inter:
-            selected_flows.extend(rng.choice(INTER_POD_FLOWS, size=n_inter, replace=False).tolist())
-        if n_intra_pod > 0 and len(INTRA_POD_FLOWS) >= n_intra_pod:
-            selected_flows.extend(rng.choice(INTRA_POD_FLOWS, size=n_intra_pod, replace=False).tolist())
-        if n_intra_edge > 0 and len(INTRA_EDGE_FLOWS) >= n_intra_edge:
-            selected_flows.extend(rng.choice(INTRA_EDGE_FLOWS, size=n_intra_edge, replace=False).tolist())
-    
-    elif flow_selection == 'inter_pod':
-        num_active = min(num_packets, len(INTER_POD_FLOWS))
-        selected_flows = rng.choice(INTER_POD_FLOWS, size=num_active, replace=False).tolist()
-    
-    elif flow_selection == 'intra_pod':
-        num_active = min(num_packets, len(INTRA_POD_FLOWS))
-        selected_flows = rng.choice(INTRA_POD_FLOWS, size=num_active, replace=False).tolist()
-    
-    elif flow_selection == 'multi_path':
-        num_active = min(num_packets, len(MULTI_PATH_FLOWS))
-        selected_flows = rng.choice(MULTI_PATH_FLOWS, size=num_active, replace=False).tolist()
-    
-    else:  # 'all'
-        num_active = min(num_packets, NUM_FLOWS)
-        selected_flows = rng.choice(NUM_FLOWS, size=num_active, replace=False).tolist()
+    # Sample flows according to weights (with replacement for realistic traffic)
+    selected_flows = rng.choice(
+        NUM_FLOWS, 
+        size=num_packets, 
+        replace=True, 
+        p=flow_weights
+    )
     
     # Generate packets
     packets = []
     for flow_id in selected_flows:
         src, dst = flow_id_to_nodes(flow_id)
         
-        # Random start time within duration (leave 5% buffer at end)
+        # Poisson-like arrival times (exponential inter-arrival)
         start_time = rng.uniform(0, duration * 0.95)
         
-        # Log-uniform packet size (favors smaller sizes)
+        # Log-uniform packet size
         log_min = np.log(min_packet_size)
         log_max = np.log(max_packet_size)
         packet_size = int(np.exp(rng.uniform(log_min, log_max)))
@@ -247,16 +341,10 @@ def load_workload(path: str) -> pd.DataFrame:
 
 
 def generate_demand_vector(workload_df: pd.DataFrame) -> np.ndarray:
-    """
-    Convert workload DataFrame to demand vector.
-    
-    Returns:
-        Array of shape (NUM_FLOWS,) with total bytes per flow
-    """
+    """Convert workload DataFrame to demand vector."""
     demand = np.zeros(NUM_FLOWS, dtype=np.float64)
     
     for _, row in workload_df.iterrows():
-        # Extract flow ID from 'link' column (format: 'flow_123')
         link = row.get('link', '')
         if isinstance(link, str) and 'flow_' in link:
             try:
@@ -277,6 +365,9 @@ def get_workload_stats(workload_df: pd.DataFrame) -> Dict:
     total_bytes = workload_df['psize'].sum()
     duration = workload_df['start'].max() - workload_df['start'].min()
     
+    # Count unique flows and packets per flow
+    flow_counts = workload_df['link'].value_counts()
+    
     # Analyze flow types
     flow_types = {'intra_edge': 0, 'intra_pod': 0, 'inter_pod': 0}
     for _, row in workload_df.iterrows():
@@ -292,10 +383,12 @@ def get_workload_stats(workload_df: pd.DataFrame) -> Dict:
     
     return {
         'num_packets': len(workload_df),
-        'total_bytes_gb': total_bytes / 1e9,
+        'unique_flows': len(flow_counts),
+        'max_packets_per_flow': flow_counts.max() if len(flow_counts) > 0 else 0,
+        'total_bytes_mb': total_bytes / 1e6,
         'duration_sec': duration,
-        'bytes_per_sec_gbps': (total_bytes * 8 / 1e9) / max(duration, 0.001),
-        'avg_packet_mb': (total_bytes / len(workload_df)) / 1e6,
+        'rate_mbps': (total_bytes * 8 / 1e6) / max(duration, 0.001),
+        'avg_packet_kb': (total_bytes / len(workload_df)) / 1e3,
         'flow_type_distribution': flow_types,
     }
 
@@ -304,20 +397,21 @@ def get_workload_stats(workload_df: pd.DataFrame) -> Dict:
 # Analysis Functions
 # =============================================================================
 
-def analyze_flow_distribution() -> Dict:
-    """Analyze the distribution of flow types in fat-tree."""
+def analyze_traffic_pattern(weights: np.ndarray) -> Dict:
+    """Analyze a traffic weight distribution."""
+    non_zero = weights[weights > 0]
+    
+    # Gini coefficient (measure of inequality)
+    sorted_weights = np.sort(weights)
+    n = len(weights)
+    cumulative = np.cumsum(sorted_weights)
+    gini = (2 * np.sum((np.arange(1, n+1) * sorted_weights))) / (n * np.sum(sorted_weights)) - (n + 1) / n
+    
     return {
-        'counts': {
-            'inter_pod': len(INTER_POD_FLOWS),
-            'intra_pod': len(INTRA_POD_FLOWS),
-            'intra_edge': len(INTRA_EDGE_FLOWS),
-        },
-        'total': NUM_FLOWS,
-        'percentages': {
-            'inter_pod': len(INTER_POD_FLOWS) / NUM_FLOWS * 100,
-            'intra_pod': len(INTRA_POD_FLOWS) / NUM_FLOWS * 100,
-            'intra_edge': len(INTRA_EDGE_FLOWS) / NUM_FLOWS * 100,
-        }
+        'num_active_flows': len(non_zero),
+        'max_weight': weights.max(),
+        'top_10_share': np.sort(weights)[-10:].sum(),  # Share of top 10 flows
+        'gini_coefficient': gini,  # 0 = equal, 1 = all traffic on one flow
     }
 
 
@@ -326,40 +420,43 @@ def analyze_flow_distribution() -> Dict:
 # =============================================================================
 
 if __name__ == "__main__":
-    print("Fat-Tree k=4 Workload Generator")
-    print("=" * 50)
-    print(f"Hosts: {NUM_HOSTS}")
-    print(f"Total possible flows: {NUM_FLOWS}")
+    print("Fat-Tree k=4 Workload Generator v3 (Traffic Models)")
+    print("=" * 60)
     
-    # Flow distribution
-    analysis = analyze_flow_distribution()
-    print("\nFlow Distribution:")
-    for flow_type, count in analysis['counts'].items():
-        pct = analysis['percentages'][flow_type]
-        paths = {'intra_edge': 1, 'intra_pod': 2, 'inter_pod': 4}[flow_type]
-        hops = {'intra_edge': 2, 'intra_pod': 4, 'inter_pod': 6}[flow_type]
-        print(f"  {flow_type}: {count} flows ({pct:.1f}%) - {paths} paths, {hops} hops")
+    # Compare traffic models
+    models = ['uniform', 'hotspot', 'gravity', 'skewed']
     
-    # Test workload generation
-    print("\nSample workload generation:")
-    for strategy in ['balanced', 'inter_pod', 'all']:
-        df = generate_workload(num_packets=60, flow_selection=strategy, seed=42)
+    for model in models:
+        print(f"\n{model.upper()} Model:")
+        print("-" * 40)
+        
+        # Generate sample workload
+        df = generate_workload(
+            num_packets=100,
+            duration=10.0,
+            seed=42,
+            traffic_model=model,
+        )
+        
         stats = get_workload_stats(df)
-        print(f"\n  Strategy: {strategy}")
-        print(f"    Packets: {stats['num_packets']}")
-        print(f"    Total: {stats['total_bytes_gb']:.2f} GB")
-        print(f"    Flow types: {stats['flow_type_distribution']}")
-    
-    # Test save/load
-    print("\nTest save/load:")
-    df = generate_workload(num_packets=10, seed=123)
-    save_workload(df, "/tmp/test_workload.csv")
-    loaded = load_workload("/tmp/test_workload.csv")
-    print(f"  Saved and loaded {len(loaded)} packets")
-    
-    # Test demand vector
-    demand = generate_demand_vector(df)
-    print(f"\nDemand vector:")
-    print(f"  Shape: {demand.shape}")
-    print(f"  Non-zero flows: {np.count_nonzero(demand)}")
-    print(f"  Total demand: {demand.sum() / 1e9:.2f} GB")
+        print(f"  Packets: {stats['num_packets']}")
+        print(f"  Unique flows: {stats['unique_flows']}")
+        print(f"  Max packets/flow: {stats['max_packets_per_flow']}")
+        print(f"  Total: {stats['total_bytes_mb']:.1f} MB")
+        print(f"  Rate: {stats['rate_mbps']:.1f} Mbps")
+        print(f"  Flow types: {stats['flow_type_distribution']}")
+        
+        # Analyze the underlying weight distribution
+        rng = np.random.default_rng(42)
+        if model == 'hotspot':
+            weights = generate_hotspot_weights(rng, 4, 15.0)
+        elif model == 'gravity':
+            weights = generate_gravity_weights(rng, 1.5)
+        elif model == 'skewed':
+            weights = generate_skewed_weights(rng)
+        else:
+            weights = np.ones(NUM_FLOWS) / NUM_FLOWS
+        
+        analysis = analyze_traffic_pattern(weights)
+        print(f"  Top 10 flows share: {analysis['top_10_share']*100:.1f}%")
+        print(f"  Gini coefficient: {analysis['gini_coefficient']:.3f}")
