@@ -33,7 +33,7 @@ from workload_generator import (
 )
 from episode_runner import EpisodeRunner, compute_reward
 from feature_extractor import FeatureExtractor
-from policy_network import PolicyNetwork, ReinforceTrainer
+from policy_network import PolicyNetwork, BatchReinforceTrainer, ReinforceTrainer
 
 
 # =============================================================================
@@ -45,7 +45,7 @@ class TrainingConfig:
     
     # Episode settings
     num_episodes: int = 500
-    packets_per_episode: int = 100        # More packets for congestion
+    packets_per_episode: int = 300        # High traffic for congestion
     episode_duration: float = 10.0        # Shorter duration = higher burst rate
     
     # Policy settings
@@ -59,10 +59,15 @@ class TrainingConfig:
     traffic_model: str = 'hotspot'        # 'uniform', 'hotspot', 'gravity', 'skewed'
     
     # Training settings
-    learning_rate: float = 1e-4
+    learning_rate: float = 3e-4           # Increased for batch updates
     baseline_decay: float = 0.99
     entropy_weight: float = 0.01
-    max_grad_norm: float = 1.0
+    max_grad_norm: float = 0.5
+    
+    # Batch training settings
+    batch_size: int = 10                  # Episodes per batch update
+    num_updates_per_batch: int = 3        # Gradient steps per batch
+    normalize_advantages: bool = True
     
     # Temperature schedule
     temperature_start: float = 1.0
@@ -177,12 +182,15 @@ class CloudSimTrainer:
             hidden_dims=config.hidden_dims,
         ).to(self.device)
         
-        self.trainer = ReinforceTrainer(
+        self.trainer = BatchReinforceTrainer(
             self.policy,
             lr=config.learning_rate,
-            baseline_decay=config.baseline_decay,
+            batch_size=config.batch_size,
+            num_updates_per_batch=config.num_updates_per_batch,
             entropy_weight=config.entropy_weight,
             max_grad_norm=config.max_grad_norm,
+            normalize_advantages=config.normalize_advantages,
+            total_episodes=config.num_episodes,
         )
         
         self.feature_extractor = FeatureExtractor(random_cold_start=True)
@@ -357,6 +365,7 @@ class CloudSimTrainer:
             'reward': reward,
             'log_prob': log_prob,
             'selected_flows': selected_flows,
+            'features_tensor': features_tensor,
             'episode_summary': episode_summary,
             'demand_vector': demand_vector,
             'wall_time_ms': results.get('wall_time_ms', 0),
@@ -364,7 +373,7 @@ class CloudSimTrainer:
     
     def train(self, start_episode: int = 0, end_episode: int = None) -> None:
         """
-        Run training loop.
+        Run training loop with batch REINFORCE updates.
         
         Args:
             start_episode: Starting episode number
@@ -374,6 +383,8 @@ class CloudSimTrainer:
             end_episode = self.config.num_episodes
         
         print(f"Starting training from episode {start_episode} to {end_episode}")
+        print(f"  Batch size: {self.config.batch_size}")
+        print(f"  Updates per batch: {self.config.num_updates_per_batch}")
         print("=" * 70)
         
         for episode_id in range(start_episode, end_episode):
@@ -387,10 +398,26 @@ class CloudSimTrainer:
             
             reward = results['reward']
             log_prob = results['log_prob']
+            features_tensor = results['features_tensor']
+            selected_flows = results['selected_flows']
             episode_summary = results.get('episode_summary', {})
             
-            # Policy update
-            loss = self.trainer.update(reward, log_prob)
+            # Store episode for batch update
+            self.trainer.store_episode(
+                features=features_tensor,
+                selected_flows=selected_flows,
+                log_prob=log_prob,
+                reward=reward,
+                temperature=self.temperature,
+            )
+            
+            # Batch update when buffer is full
+            loss = 0.0
+            if self.trainer.should_update():
+                update_metrics = self.trainer.update()
+                loss = update_metrics.get('loss', 0.0)
+                print(f"    [Batch Update #{update_metrics.get('num_updates', 0)}] "
+                      f"loss={loss:.4f} batch_R={update_metrics.get('batch_reward_mean', 0):.4f}")
             
             # Update temperature
             self.temperature = max(
@@ -404,7 +431,7 @@ class CloudSimTrainer:
                 'mean_queuing_ms': episode_summary.get('mean_queuing_ms', 0),
                 'drop_rate': episode_summary.get('drop_rate', 0),
                 'loss': loss,
-                'baseline': self.trainer.baseline,
+                'baseline': self.trainer.get_baseline(),
                 'temperature': self.temperature,
                 'wall_time_ms': results.get('wall_time_ms', 0),
                 'total_packets': episode_summary.get('total_packets', 0),
@@ -503,14 +530,16 @@ def main():
     # Training settings
     parser.add_argument("--episodes", type=int, default=500,
                        help="Number of training episodes")
-    parser.add_argument("--packets", type=int, default=100,
-                       help="Packets per episode (default: 100)")
+    parser.add_argument("--packets", type=int, default=300,
+                       help="Packets per episode (default: 300)")
     parser.add_argument("--duration", type=float, default=10.0,
                        help="Episode duration in seconds (default: 10)")
     parser.add_argument("--k-critical", type=int, default=12,
                        help="Number of critical flows to select (K)")
-    parser.add_argument("--lr", type=float, default=1e-4,
-                       help="Learning rate")
+    parser.add_argument("--lr", type=float, default=3e-4,
+                       help="Learning rate (default: 3e-4 for batch training)")
+    parser.add_argument("--batch-size", type=int, default=10,
+                       help="Episodes per batch update (default: 10)")
     parser.add_argument("--flow-selection", type=str, default='balanced',
                        choices=['balanced', 'inter_pod', 'all'],
                        help="Flow selection strategy (legacy, use --traffic-model instead)")
@@ -542,6 +571,7 @@ def main():
         k_critical=args.k_critical,
         traffic_model=args.traffic_model,
         learning_rate=args.lr,
+        batch_size=args.batch_size,
         save_episode_freq=args.save_episode_freq,
         cloudsim_dir=args.cloudsim_dir,
         output_dir=args.output_dir,

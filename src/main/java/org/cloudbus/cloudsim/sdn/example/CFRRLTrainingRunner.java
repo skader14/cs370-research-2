@@ -194,6 +194,11 @@ public class CFRRLTrainingRunner {
             // 4. Print summaries to log
             LatencyCollector.getInstance().printSummary();
             LinkStatsCollector.getInstance().printSummary();
+
+            // 5. Log routing statistics (critical vs background)
+            if (cfrrlPolicy != null) {
+                cfrrlPolicy.logStatistics();
+            }
             
             // ==================== SUCCESS ====================
             CFRRLLogger.info("TrainingRunner", "=== EPISODE COMPLETE ===");
