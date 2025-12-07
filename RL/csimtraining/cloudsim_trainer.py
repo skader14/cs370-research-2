@@ -33,7 +33,7 @@ from workload_generator import (
 )
 from episode_runner import EpisodeRunner, compute_reward
 from feature_extractor import FeatureExtractor
-from policy_network import PolicyNetwork, BatchReinforceTrainer, ReinforceTrainer
+from policy_network import PolicyNetwork, BatchReinforceTrainer
 
 
 # =============================================================================

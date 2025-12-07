@@ -245,8 +245,8 @@ def generate_workload(
     num_packets: int = 100,
     duration: float = 10.0,
     seed: Optional[int] = None,
-    min_packet_size: int = 50_000,       # 50 KB
-    max_packet_size: int = 1_000_000,    # 1 MB
+    min_packet_size: int = 10_000,       # 50 KB
+    max_packet_size: int = 100_000,    # 1 MB
     traffic_model: str = 'hotspot',      # 'uniform', 'hotspot', 'gravity', 'stride', 'skewed'
     hotspot_count: int = 4,              # Number of hotspot pairs
     hotspot_intensity: float = 15.0,     # Hotspot traffic multiplier
