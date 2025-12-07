@@ -307,6 +307,9 @@ class CloudSimTrainer:
             episode_id=episode_id,
         )
         
+        # Clean up CloudSim's auto-generated result_* directories
+        self.episode_runner.cleanup_cloudsim_results()
+        
         if not results.get('success', False):
             print(f"  Episode {episode_id} FAILED: {results.get('error', 'Unknown error')}")
             return {'success': False, 'reward': -10.0}
