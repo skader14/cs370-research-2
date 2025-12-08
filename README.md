@@ -7,6 +7,7 @@ Latency Work: Change the model path and experiment name in agent.py
 Change the experienment name and other stuff in cfrrlexamplelatency
 then run:  mvn exec:java "-Dexec.mainClass=org.cloudbus.cloudsim.sdn.example.CFRRLExampleLatency"
 
+REINFORCE complete: python RL/csimtraining/cloudsim_trainer.py --cloudsim-dir . --episodes 1000 --packets 2000 --duration 10 --traffic-model hotspot --output-dir training_run12_1237_1282025_fixedworkloadperbatch
 
 
 to run the CFRRL version. Still need to check it against a normal version and compare stats.
