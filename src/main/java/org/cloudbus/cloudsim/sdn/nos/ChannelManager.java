@@ -89,6 +89,12 @@ public class ChannelManager {
 				(SDNVm)NetworkOperatingSystem.findVmGlobal(src), (SDNVm)NetworkOperatingSystem.findVmGlobal(dst));
 		//Log.printLine(CloudSim.clock() + ": " + getName() + ".createChannel:"+channel);
 	
+		// DEBUG: Trace bandwidth configuration
+		System.out.println("CHANNEL_CREATE_DEBUG: flowId=" + flowId + 
+						" reqBw=" + reqBw + 
+						" lowestLinkBw=" + lowestBw +
+						" nodes=" + nodes.size());
+
 		return channel;
 	}
 

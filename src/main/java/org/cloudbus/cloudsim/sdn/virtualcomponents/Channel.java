@@ -493,7 +493,12 @@ public class Channel {
 	}
 
 	public double addTransmission(Transmission transmission){
-		return packetScheduler.addTransmission(transmission);
+		double eft = packetScheduler.addTransmission(transmission);
+		// DEBUG: Log transmission time
+		System.out.println("TX_DEBUG: size=" + transmission.getSize() + 
+						" allocBW=" + this.allocatedBandwidth +
+						" estFinishTime=" + eft);
+		return eft;
 	}
 
 	public void removeTransmission(Transmission transmission){

@@ -150,14 +150,14 @@ public class LinkStatsCollector {
      */
     public void recordLinkUtilization(String srcNode, String dstNode, 
                                        double utilization, double timestamp,
-                                       long bytesTransferred) {
+                                       long bytesTransferred, double capacity) {
         String linkId = getLinkId(srcNode, dstNode);
         LinkStats stats = linkStatsMap.get(linkId);
         
         if (stats == null) {
             // Auto-register if not registered (shouldn't happen normally)
             CFRRLLogger.warn("LinkStatsCollector", "Auto-registering unknown link: " + linkId);
-            stats = new LinkStats(linkId, srcNode, dstNode, 0);
+            stats = new LinkStats(linkId, srcNode, dstNode, capacity);
             linkStatsMap.put(linkId, stats);
         }
         

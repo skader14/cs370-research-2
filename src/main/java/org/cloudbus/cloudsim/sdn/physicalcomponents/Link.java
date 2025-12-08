@@ -283,7 +283,8 @@ public class Link {
 			this.highOrder.toString(),  // Destination node
 			utilization1,               // Utilization [0,1]
 			logTime,                    // Timestamp
-			bytesUp                     // Bytes transferred
+			bytesUp,                     // Bytes transferred
+			this.upBW
 		);
 		
 		// Calculate utilization for downlink (highOrder -> lowOrder)
@@ -302,7 +303,8 @@ public class Link {
 			this.lowOrder.toString(),   // Destination node
 			utilization2,               // Utilization [0,1]
 			logTime,                    // Timestamp
-			bytesDown                   // Bytes transferred
+			bytesDown,                   // Bytes transferred
+			this.downBW
 		);
 		
 		return Double.max(utilization1, utilization2);

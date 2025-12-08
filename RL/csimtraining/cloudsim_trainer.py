@@ -179,8 +179,10 @@ class CloudSimTrainer:
         self.policy = PolicyNetwork(
             num_flows=config.num_flows,
             num_features=config.num_features,
-            hidden_dims=config.hidden_dims,
+            hidden_dim=config.hidden_dims[0],
+            num_hidden_layers=len(config.hidden_dims),
         ).to(self.device)
+
         
         self.trainer = BatchReinforceTrainer(
             self.policy,
@@ -229,7 +231,7 @@ class CloudSimTrainer:
             'episode': self.episode,
             'model_state_dict': self.policy.state_dict(),
             'optimizer_state_dict': self.trainer.optimizer.state_dict(),
-            'baseline': self.trainer.baseline,
+            'baseline': self.trainer.get_baseline(),
             'temperature': self.temperature,
             'best_reward': self.best_reward,
             'config': self.config.to_dict(),
@@ -246,7 +248,6 @@ class CloudSimTrainer:
         
         self.policy.load_state_dict(checkpoint['model_state_dict'])
         self.trainer.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.trainer.baseline = checkpoint['baseline']
         self.temperature = checkpoint['temperature']
         self.best_reward = checkpoint['best_reward']
         self.episode = checkpoint['episode']
@@ -416,8 +417,7 @@ class CloudSimTrainer:
             if self.trainer.should_update():
                 update_metrics = self.trainer.update()
                 loss = update_metrics.get('loss', 0.0)
-                print(f"    [Batch Update #{update_metrics.get('num_updates', 0)}] "
-                      f"loss={loss:.4f} batch_R={update_metrics.get('batch_reward_mean', 0):.4f}")
+                print(f"    [Batch Update] loss={loss:.4f} batch_R={update_metrics.get('batch_reward_mean', 0):.4f}")
             
             # Update temperature
             self.temperature = max(
