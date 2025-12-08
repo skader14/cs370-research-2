@@ -7,6 +7,8 @@ Latency Work: Change the model path and experiment name in agent.py
 Change the experienment name and other stuff in cfrrlexamplelatency
 then run:  mvn exec:java "-Dexec.mainClass=org.cloudbus.cloudsim.sdn.example.CFRRLExampleLatency"
 
+now working on implenenting ppo, switching to potentially a lower amount of ciritcal flows, and adding denser rewards than at the end of every episode.
+
 
 
 to run the CFRRL version. Still need to check it against a normal version and compare stats.
