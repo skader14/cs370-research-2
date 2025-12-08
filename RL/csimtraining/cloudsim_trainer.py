@@ -195,7 +195,7 @@ class CloudSimTrainer:
             total_episodes=config.num_episodes,
         )
         
-        self.feature_extractor = FeatureExtractor(random_cold_start=True)
+        self.feature_extractor = FeatureExtractor(random_cold_start=False)
         
         self.episode_runner = EpisodeRunner(
             cloudsim_dir=config.cloudsim_dir,
@@ -213,6 +213,10 @@ class CloudSimTrainer:
         
         # Episode counter
         self.episode = 0
+
+        # Fixed workload support (reuse within batch for fair comparison)
+        self._cached_workload = None
+        self._cached_workload_batch = -1
         
         # Save config
         config_path = self.output_dir / "config.json"
@@ -289,13 +293,25 @@ class CloudSimTrainer:
             else:
                 episode_dir = "episodes/temp"
             
-            # 1. Generate random workload
-            workload_df = generate_workload(
-                num_packets=self.config.packets_per_episode,
-                duration=self.config.episode_duration,
-                seed=None,  # Truly random
-                traffic_model=self.config.traffic_model,
-            )
+            # 1. Generate or reuse workload (fixed within batch for fair comparison)
+            current_batch = episode_id // self.config.batch_size
+            
+            if current_batch != self._cached_workload_batch:
+                # New batch - generate fresh workload
+                self._cached_workload = generate_workload(
+                    num_packets=self.config.packets_per_episode,
+                    duration=self.config.episode_duration,
+                    seed=None,  # Truly random
+                    traffic_model=self.config.traffic_model,
+                )
+                self._cached_workload_batch = current_batch
+                print(f"[Trainer] Batch {current_batch}: Generated new fixed workload")
+            else:
+                # Same batch - reuse workload
+                ep_in_batch = episode_id % self.config.batch_size
+                print(f"[Trainer] Batch {current_batch}: Reusing workload (ep {ep_in_batch + 1}/{self.config.batch_size})")
+            
+            workload_df = self._cached_workload.copy()
             
             # Save workload
             workload_file = f"{episode_dir}/workload.csv"
