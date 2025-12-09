@@ -13,6 +13,8 @@ ppo command: python RL/csimtraining/cloudsim_trainer.py --cloudsim-dir . --episo
 
 to run the CFRRL version. Still need to check it against a normal version and compare stats.
 
+now checking ppo dense rewards against normal implementations (all ecmp, rnadom k, topk queueing, topk delay)
+
 
 # CloudSimSDN
 
