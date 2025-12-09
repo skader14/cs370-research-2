@@ -3,17 +3,21 @@ cloudsim_trainer.py - Main training loop for CloudSim-in-the-loop RL.
 
 Updated for Fat-Tree topology (16 hosts, 240 flows).
 Now supports both REINFORCE and PPO algorithms.
+Supports dense rewards via time-windowed packet analysis.
 
 This script:
 1. Generates random workloads for each episode
 2. Uses the policy network to select K critical flows
 3. Runs CloudSim as a subprocess
-4. Reads results and computes reward
+4. Reads results and computes reward (sparse or dense)
 5. Updates policy using PPO (default) or REINFORCE
 
 Usage:
-    # PPO training (recommended)
+    # PPO training with sparse rewards
     python cloudsim_trainer.py --episodes 500 --cloudsim-dir /path/to/cloudsimsdn
+    
+    # PPO training with dense rewards (recommended)
+    python cloudsim_trainer.py --episodes 500 --dense-rewards --cloudsim-dir /path/to/cloudsimsdn
     
     # REINFORCE training (for comparison)
     python cloudsim_trainer.py --episodes 500 --algorithm reinforce --cloudsim-dir /path/to/cloudsimsdn
@@ -36,7 +40,10 @@ from workload_generator import (
     generate_workload, save_workload, generate_demand_vector, 
     get_workload_stats, load_workload, NUM_FLOWS, NUM_HOSTS
 )
-from episode_runner import EpisodeRunner, compute_reward
+from episode_runner import (
+    EpisodeRunner, compute_reward, compute_dense_rewards,
+    compute_dense_reward_from_results
+)
 from feature_extractor import FeatureExtractor
 from policy_network import (
     PolicyNetwork, ValueNetwork, PPOTrainer, BatchReinforceTrainer,
@@ -94,10 +101,17 @@ class TrainingConfig:
     temperature_start: float = 1.0
     temperature_end: float = 0.1
     temperature_decay: float = 0.995
+    min_temperature: float = 0.1          # Floor for temperature (can be > temperature_end)
     
     # Reward settings
     queuing_weight: float = 1.0
     drop_penalty: float = 10.0
+    
+    # Dense reward settings
+    use_dense_rewards: bool = False       # Use windowed dense rewards
+    dense_window_size: float = 1.0        # Window size in seconds
+    dense_gamma: float = 0.99             # Discount factor for dense rewards
+    dense_critical_only: bool = True      # Only use critical flow packets
     
     # Checkpointing
     checkpoint_freq: int = 50
@@ -129,19 +143,21 @@ class TrainingConfig:
 class MetricsLogger:
     """Log training metrics to CSV and console."""
     
-    def __init__(self, output_dir: str, algorithm: str = 'ppo'):
+    def __init__(self, output_dir: str, algorithm: str = 'ppo', dense_rewards: bool = False):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.algorithm = algorithm
+        self.dense_rewards = dense_rewards
         
         self.csv_path = self.output_dir / "training_metrics.csv"
         self.metrics_buffer = []
         
-        # Write header (PPO has additional columns)
+        # Write header (includes dense reward columns)
         header = (
             "episode,timestamp,reward,mean_queuing_ms,drop_rate,loss,"
             "policy_loss,value_loss,entropy,kl_div,baseline,"
-            "temperature,wall_time_ms,packets,active_flows\n"
+            "temperature,wall_time_ms,packets,active_flows,"
+            "num_windows,critical_packets,dense_reward_undiscounted\n"
         )
         with open(self.csv_path, 'w') as f:
             f.write(header)
@@ -158,7 +174,9 @@ class MetricsLogger:
             f"{metrics.get('entropy', 0):.6f},{metrics.get('kl_divergence', 0):.6f},"
             f"{metrics.get('baseline', 0):.6f},"
             f"{metrics.get('temperature', 1.0):.4f},{metrics.get('wall_time_ms', 0)},"
-            f"{metrics.get('total_packets', 0)},{metrics.get('num_flows_active', 0)}\n"
+            f"{metrics.get('total_packets', 0)},{metrics.get('num_flows_active', 0)},"
+            f"{metrics.get('num_windows', 0)},{metrics.get('critical_packets', 0)},"
+            f"{metrics.get('dense_reward_undiscounted', 0):.6f}\n"
         )
         
         with open(self.csv_path, 'a') as f:
@@ -192,6 +210,7 @@ class CloudSimTrainer:
     Main trainer for CloudSim-in-the-loop RL.
     
     Supports both PPO and REINFORCE algorithms.
+    Supports sparse and dense reward modes.
     """
     
     def __init__(self, config: TrainingConfig):
@@ -212,7 +231,7 @@ class CloudSimTrainer:
         else:
             self._init_reinforce(config)
         
-        self.feature_extractor = FeatureExtractor(random_cold_start=True)
+        self.feature_extractor = FeatureExtractor(random_cold_start=False)
         
         self.episode_runner = EpisodeRunner(
             cloudsim_dir=config.cloudsim_dir,
@@ -220,7 +239,11 @@ class CloudSimTrainer:
             verbose=True,
         )
         
-        self.logger = MetricsLogger(str(self.output_dir), config.algorithm)
+        self.logger = MetricsLogger(
+            str(self.output_dir), 
+            config.algorithm,
+            config.use_dense_rewards
+        )
         
         # Temperature schedule
         self.temperature = config.temperature_start
@@ -242,6 +265,12 @@ class CloudSimTrainer:
         
         print("CloudSimTrainer initialized")
         print(f"  Algorithm: {config.algorithm.upper()}")
+        print(f"  Rewards: {'DENSE' if config.use_dense_rewards else 'SPARSE'}")
+        if config.use_dense_rewards:
+            print(f"    Window size: {config.dense_window_size}s")
+            print(f"    Discount (gamma): {config.dense_gamma}")
+            print(f"    Critical only: {config.dense_critical_only}")
+        print(f"  Temperature: {config.temperature_start} → {config.min_temperature} (min floor)")
         print(f"  Topology: Fat-Tree k=4 ({NUM_HOSTS} hosts, {NUM_FLOWS} flows)")
         print(f"  Device: {self.device}")
         print(f"  Output dir: {self.output_dir}")
@@ -251,7 +280,6 @@ class CloudSimTrainer:
     
     def _init_ppo(self, config: TrainingConfig) -> None:
         """Initialize PPO networks and trainer."""
-        # Create policy and value networks
         self.policy, self.value_net = create_ppo_networks(
             num_flows=config.num_flows,
             num_features=config.num_features,
@@ -260,7 +288,6 @@ class CloudSimTrainer:
             device=self.device,
         )
         
-        # Create PPO trainer
         self.trainer = PPOTrainer(
             policy=self.policy,
             value_net=self.value_net,
@@ -286,7 +313,7 @@ class CloudSimTrainer:
             num_hidden_layers=len(config.hidden_dims),
         ).to(self.device)
         
-        self.value_net = None  # REINFORCE doesn't use a value network
+        self.value_net = None
         
         self.trainer = BatchReinforceTrainer(
             self.policy,
@@ -310,9 +337,9 @@ class CloudSimTrainer:
             'best_reward': self.best_reward,
             'config': self.config.to_dict(),
             'algorithm': self.config.algorithm,
+            'use_dense_rewards': self.config.use_dense_rewards,
         }
         
-        # Add PPO-specific state
         if self.config.algorithm == 'ppo':
             checkpoint['value_net_state_dict'] = self.value_net.state_dict()
             checkpoint['value_optimizer_state_dict'] = self.trainer.value_optimizer.state_dict()
@@ -327,7 +354,6 @@ class CloudSimTrainer:
         """Load training checkpoint."""
         checkpoint = torch.load(path, map_location=self.device)
         
-        # Check algorithm compatibility
         saved_algo = checkpoint.get('algorithm', 'reinforce')
         if saved_algo != self.config.algorithm:
             print(f"Warning: Checkpoint was saved with {saved_algo}, but current config uses {self.config.algorithm}")
@@ -339,7 +365,6 @@ class CloudSimTrainer:
         self.best_reward = checkpoint['best_reward']
         self.episode = checkpoint['episode']
         
-        # Load PPO-specific state if available
         if self.config.algorithm == 'ppo' and 'value_net_state_dict' in checkpoint:
             self.value_net.load_state_dict(checkpoint['value_net_state_dict'])
             self.trainer.value_optimizer.load_state_dict(checkpoint['value_optimizer_state_dict'])
@@ -361,69 +386,59 @@ class CloudSimTrainer:
             existing_workload: Path to existing workload file (optional)
         
         Returns:
-            Dictionary with episode results
+            Dictionary with episode results including reward (sparse or dense)
         """
         if existing_workload:
-            # Use existing workload file
             workload_path = Path(self.config.cloudsim_dir) / existing_workload
             episode_dir = f"episodes/ep_{episode_id:04d}"
             workload_df = load_workload(str(workload_path))
             workload_file = existing_workload
-            should_save = True  # Always save when using existing workload
+            should_save = True
         else:
-            # Determine if we should save this episode's data
             save_freq = self.config.save_episode_freq
             should_save = save_freq > 0 and (episode_id % save_freq == 0)
             
-            # Use temp folder for non-saved episodes, permanent folder for saved ones
             if should_save:
                 episode_dir = f"episodes/ep_{episode_id:04d}"
             else:
                 episode_dir = "episodes/temp"
             
-            # 1. Generate or reuse workload (fixed within batch for fair comparison)
             current_batch = episode_id // self.config.batch_size
             
             if current_batch != self._cached_workload_batch:
-                # New batch - generate fresh workload
                 self._cached_workload = generate_workload(
                     num_packets=self.config.packets_per_episode,
                     duration=self.config.episode_duration,
-                    seed=None,  # Truly random
+                    seed=None,
                     traffic_model=self.config.traffic_model,
                 )
                 self._cached_workload_batch = current_batch
                 print(f"[Trainer] Batch {current_batch}: Generated new fixed workload")
             else:
-                # Same batch - reuse workload
                 ep_in_batch = episode_id % self.config.batch_size
                 print(f"[Trainer] Batch {current_batch}: Reusing workload (ep {ep_in_batch + 1}/{self.config.batch_size})")
             
             workload_df = self._cached_workload.copy()
             
-            # Save workload
             workload_file = f"{episode_dir}/workload.csv"
             workload_path = self.output_dir / workload_file
             workload_path.parent.mkdir(parents=True, exist_ok=True)
             save_workload(workload_df, str(workload_path))
         
-        # 2. Extract features
+        # Extract features
         demand_vector = generate_demand_vector(workload_df)
         features = self.feature_extractor.extract_features(demand_vector)
         features_tensor = torch.FloatTensor(features).unsqueeze(0).to(self.device)
         
-        # 3. Get policy action (select K critical flows)
-        # Note: Don't use no_grad here - we need gradients for policy update
+        # Get policy action
         logits = self.policy(features_tensor)
-        
-        # Sample with temperature
         selected_flows, log_prob = self.policy.sample_action(
             logits, 
             k=self.config.k_critical,
             temperature=self.temperature,
         )
         
-        # 4. Run CloudSim episode
+        # Run CloudSim episode
         output_dir = str(self.output_dir / episode_dir)
         results = self.episode_runner.run_episode(
             workload_file=str(workload_path),
@@ -432,12 +447,10 @@ class CloudSimTrainer:
             episode_id=episode_id,
         )
         
-        # Clean up CloudSim's auto-generated result_* directories
         self.episode_runner.cleanup_cloudsim_results()
         
         if not results.get('success', False):
             print(f"  Episode {episode_id} FAILED: {results.get('error', 'Unknown error')}")
-            # Clean up temp folder on failure too
             if not should_save:
                 temp_dir = self.output_dir / "episodes" / "temp"
                 if temp_dir.exists():
@@ -445,20 +458,50 @@ class CloudSimTrainer:
                     shutil.rmtree(temp_dir)
             return {'success': False, 'reward': -10.0}
         
-        # 5. Compute reward
+        # Compute reward (sparse or dense)
         episode_summary = results.get('episode_summary', {})
-        reward = compute_reward(
-            episode_summary=episode_summary,
-            queuing_weight=self.config.queuing_weight,
-            drop_penalty=self.config.drop_penalty,
-        )
+        dense_info = {}
         
-        # 6. Update feature extractor with flow statistics
+        if self.config.use_dense_rewards:
+            dense_result = compute_dense_reward_from_results(
+                results=results,
+                window_size=self.config.dense_window_size,
+                queuing_weight=self.config.queuing_weight,
+                drop_penalty=self.config.drop_penalty,
+                gamma=self.config.dense_gamma,
+                critical_only=self.config.dense_critical_only,
+            )
+            
+            reward = dense_result.get('total_reward', 0)
+            
+            dense_info = {
+                'num_windows': dense_result.get('num_windows', 0),
+                'critical_packets': dense_result.get('critical_packets', 0),
+                'dense_reward_undiscounted': dense_result.get('total_reward_undiscounted', 0),
+            }
+            
+            if should_save or episode_id % 50 == 0:
+                sparse_reward = compute_reward(
+                    episode_summary=episode_summary,
+                    queuing_weight=self.config.queuing_weight,
+                    drop_penalty=self.config.drop_penalty,
+                )
+                print(f"    [Dense] windows={dense_info['num_windows']}, "
+                      f"crit_packets={dense_info['critical_packets']}, "
+                      f"R_dense={reward:.4f}, R_sparse={sparse_reward:.4f}")
+        else:
+            reward = compute_reward(
+                episode_summary=episode_summary,
+                queuing_weight=self.config.queuing_weight,
+                drop_penalty=self.config.drop_penalty,
+            )
+        
+        # Update feature extractor
         flow_summary = results.get('flow_summary')
         if flow_summary is not None and not flow_summary.empty:
             self.feature_extractor.update_historical_features(flow_summary)
         
-        # 7. Clean up temp episode folder if not saving
+        # Clean up temp folder
         if not should_save:
             temp_dir = self.output_dir / "episodes" / "temp"
             if temp_dir.exists():
@@ -474,33 +517,30 @@ class CloudSimTrainer:
             'episode_summary': episode_summary,
             'demand_vector': demand_vector,
             'wall_time_ms': results.get('wall_time_ms', 0),
+            **dense_info,
         }
     
     def train(self, start_episode: int = 0, end_episode: int = None) -> None:
-        """
-        Run training loop with batch updates.
-        
-        Args:
-            start_episode: Starting episode number
-            end_episode: Ending episode number (exclusive)
-        """
+        """Run training loop with batch updates."""
         if end_episode is None:
             end_episode = self.config.num_episodes
         
         algo_name = self.config.algorithm.upper()
-        print(f"Starting {algo_name} training from episode {start_episode} to {end_episode}")
+        reward_type = "DENSE" if self.config.use_dense_rewards else "SPARSE"
+        print(f"Starting {algo_name} training ({reward_type} rewards) from episode {start_episode} to {end_episode}")
         print(f"  Batch size: {self.config.batch_size}")
         if self.config.algorithm == 'ppo':
             print(f"  PPO epochs per batch: {self.config.ppo_epochs}")
             print(f"  Clip epsilon: {self.config.clip_epsilon}")
         else:
             print(f"  Updates per batch: {self.config.num_updates_per_batch}")
+        if self.config.use_dense_rewards:
+            print(f"  Dense window size: {self.config.dense_window_size}s")
         print("=" * 70)
         
         for episode_id in range(start_episode, end_episode):
             self.episode = episode_id
             
-            # Run episode
             results = self.run_episode(episode_id)
             
             if not results.get('success', False):
@@ -512,7 +552,6 @@ class CloudSimTrainer:
             selected_flows = results['selected_flows']
             episode_summary = results.get('episode_summary', {})
             
-            # Store episode for batch update
             self.trainer.store_episode(
                 features=features_tensor,
                 selected_flows=selected_flows,
@@ -521,12 +560,10 @@ class CloudSimTrainer:
                 temperature=self.temperature,
             )
             
-            # Batch update when buffer is full
             update_metrics = {}
             if self.trainer.should_update():
                 update_metrics = self.trainer.update()
                 
-                # Log update info
                 if self.config.algorithm == 'ppo':
                     print(f"    [{algo_name} Update] "
                           f"policy_loss={update_metrics.get('policy_loss', 0):.4f} "
@@ -538,13 +575,11 @@ class CloudSimTrainer:
                     print(f"    [REINFORCE Update] loss={update_metrics.get('loss', 0):.4f} "
                           f"batch_R={update_metrics.get('batch_reward_mean', 0):.4f}")
             
-            # Update temperature
             self.temperature = max(
-                self.config.temperature_end,
+                self.config.min_temperature,
                 self.temperature * self.config.temperature_decay
             )
             
-            # Log metrics
             metrics = {
                 'reward': reward,
                 'mean_queuing_ms': episode_summary.get('mean_queuing_ms', 0),
@@ -559,16 +594,17 @@ class CloudSimTrainer:
                 'wall_time_ms': results.get('wall_time_ms', 0),
                 'total_packets': episode_summary.get('total_packets', 0),
                 'num_flows_active': episode_summary.get('num_flows_active', 0),
+                'num_windows': results.get('num_windows', 0),
+                'critical_packets': results.get('critical_packets', 0),
+                'dense_reward_undiscounted': results.get('dense_reward_undiscounted', 0),
             }
             self.logger.log(episode_id, metrics)
             
-            # Console output
             stats = self.logger.get_recent_stats(10)
             print(f"[Ep {episode_id:4d}] R={reward:.4f} Q={metrics['mean_queuing_ms']:.1f}ms "
                   f"D={metrics['drop_rate']:.4f} T={self.temperature:.3f} | "
                   f"Avg10: R={stats.get('mean_reward', 0):.4f}")
             
-            # Track best model
             if reward > self.best_reward:
                 self.best_reward = reward
                 self.save_checkpoint(
@@ -577,18 +613,17 @@ class CloudSimTrainer:
                 )
                 print(f"    ★ New best reward: {reward:.6f}")
             
-            # Periodic checkpoint
             if (episode_id + 1) % self.config.checkpoint_freq == 0:
                 self.save_checkpoint(
                     str(self.checkpoint_dir / f"checkpoint_ep{episode_id:04d}.pt")
                 )
         
-        # Final checkpoint
         self.save_checkpoint(str(self.checkpoint_dir / "final_model.pt"))
         
         print("=" * 70)
         print("Training complete!")
         print(f"  Algorithm: {self.config.algorithm.upper()}")
+        print(f"  Rewards: {'DENSE' if self.config.use_dense_rewards else 'SPARSE'}")
         print(f"  Best reward: {self.best_reward:.6f}")
         print(f"  Final checkpoint: {self.checkpoint_dir}/final_model.pt")
 
@@ -602,34 +637,20 @@ def evaluate_policy(
     num_episodes: int = 50,
     use_random_baseline: bool = False,
 ) -> Dict[str, float]:
-    """
-    Evaluate a trained policy.
-    
-    Args:
-        trainer: CloudSimTrainer with loaded policy
-        num_episodes: Number of evaluation episodes
-        use_random_baseline: If True, use random policy instead
-    
-    Returns:
-        Dictionary with evaluation statistics
-    """
+    """Evaluate a trained policy."""
     rewards = []
     queuing_delays = []
     drop_rates = []
     
-    # Set to eval mode (no gradient)
     trainer.policy.eval()
     if trainer.value_net is not None:
         trainer.value_net.eval()
     
-    # Use low temperature for deterministic evaluation
     original_temp = trainer.temperature
     trainer.temperature = 0.1
     
     for ep in range(num_episodes):
-        results = trainer.run_episode(
-            episode_id=10000 + ep,  # Offset to avoid training episodes
-        )
+        results = trainer.run_episode(episode_id=10000 + ep)
         
         if results.get('success', False):
             rewards.append(results['reward'])
@@ -637,7 +658,6 @@ def evaluate_policy(
             queuing_delays.append(summary.get('mean_queuing_ms', 0))
             drop_rates.append(summary.get('drop_rate', 0))
     
-    # Restore temperature
     trainer.temperature = original_temp
     
     return {
@@ -656,57 +676,48 @@ def evaluate_policy(
 def main():
     parser = argparse.ArgumentParser(description="CFR-RL CloudSim Training (Fat-Tree)")
     
-    # Required
     parser.add_argument("--cloudsim-dir", type=str, required=True,
                        help="Path to CloudSimSDN project directory")
     
-    # Algorithm selection
     parser.add_argument("--algorithm", type=str, default='ppo',
                        choices=['ppo', 'reinforce'],
-                       help="Training algorithm: ppo (recommended) or reinforce (default: ppo)")
+                       help="Training algorithm (default: ppo)")
     
-    # Training settings
-    parser.add_argument("--episodes", type=int, default=500,
-                       help="Number of training episodes")
-    parser.add_argument("--packets", type=int, default=300,
-                       help="Packets per episode (default: 300)")
-    parser.add_argument("--duration", type=float, default=10.0,
-                       help="Episode duration in seconds (default: 10)")
-    parser.add_argument("--k-critical", type=int, default=12,
-                       help="Number of critical flows to select (K)")
-    parser.add_argument("--lr", type=float, default=3e-4,
-                       help="Policy learning rate (default: 3e-4)")
-    parser.add_argument("--batch-size", type=int, default=10,
-                       help="Episodes per batch update (default: 10)")
+    parser.add_argument("--episodes", type=int, default=500)
+    parser.add_argument("--packets", type=int, default=300)
+    parser.add_argument("--duration", type=float, default=10.0)
+    parser.add_argument("--k-critical", type=int, default=12)
+    parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument("--batch-size", type=int, default=10)
     parser.add_argument("--traffic-model", type=str, default='hotspot',
-                       choices=['uniform', 'hotspot', 'gravity', 'skewed'],
-                       help="Traffic model (default: hotspot)")
-    parser.add_argument("--save-episode-freq", type=int, default=50,
-                       help="Save episode data every N episodes (0=never, default=50)")
+                       choices=['uniform', 'hotspot', 'gravity', 'skewed'])
+    parser.add_argument("--save-episode-freq", type=int, default=50)
     
-    # PPO-specific settings
-    parser.add_argument("--ppo-epochs", type=int, default=4,
-                       help="PPO gradient epochs per batch (default: 4)")
-    parser.add_argument("--clip-epsilon", type=float, default=0.2,
-                       help="PPO clipping parameter (default: 0.2)")
-    parser.add_argument("--lr-value", type=float, default=1e-3,
-                       help="Value network learning rate (default: 1e-3)")
+    # PPO-specific
+    parser.add_argument("--ppo-epochs", type=int, default=4)
+    parser.add_argument("--clip-epsilon", type=float, default=0.2)
+    parser.add_argument("--lr-value", type=float, default=1e-3)
     
-    # Output
-    parser.add_argument("--output-dir", type=str, default="training_outputs",
-                       help="Output directory for checkpoints and logs")
+    # Dense rewards
+    parser.add_argument("--dense-rewards", action="store_true",
+                       help="Use dense (windowed) rewards instead of sparse")
+    parser.add_argument("--window-size", type=float, default=1.0,
+                       help="Window size for dense rewards in seconds")
+    parser.add_argument("--dense-gamma", type=float, default=0.99,
+                       help="Discount factor for dense rewards")
+    parser.add_argument("--dense-all-packets", action="store_true",
+                       help="Use all packets for dense rewards (default: critical only)")
     
-    # Resume
-    parser.add_argument("--resume", type=str, default=None,
-                       help="Resume from checkpoint file")
+    # Temperature control
+    parser.add_argument("--min-temperature", type=float, default=0.1,
+                       help="Minimum temperature floor (default: 0.1, use 0.15 to prevent over-exploitation)")
     
-    # Evaluation only
-    parser.add_argument("--eval-only", action="store_true",
-                       help="Only run evaluation (requires --resume)")
+    parser.add_argument("--output-dir", type=str, default="training_outputs")
+    parser.add_argument("--resume", type=str, default=None)
+    parser.add_argument("--eval-only", action="store_true")
     
     args = parser.parse_args()
     
-    # Create config
     config = TrainingConfig(
         algorithm=args.algorithm,
         num_episodes=args.episodes,
@@ -720,18 +731,20 @@ def main():
         clip_epsilon=args.clip_epsilon,
         lr_value=args.lr_value,
         save_episode_freq=args.save_episode_freq,
+        use_dense_rewards=args.dense_rewards,
+        dense_window_size=args.window_size,
+        dense_gamma=args.dense_gamma,
+        dense_critical_only=not args.dense_all_packets,
+        min_temperature=args.min_temperature,
         cloudsim_dir=args.cloudsim_dir,
         output_dir=args.output_dir,
     )
     
-    # Create trainer
     trainer = CloudSimTrainer(config)
     
-    # Resume if specified
     if args.resume:
         trainer.load_checkpoint(args.resume)
     
-    # Evaluation mode
     if args.eval_only:
         if not args.resume:
             print("Error: --eval-only requires --resume")
@@ -745,7 +758,6 @@ def main():
         print(f"  Mean drop rate: {stats['mean_drop_rate']:.4f}")
         return
     
-    # Training mode
     start_ep = trainer.episode if args.resume else 0
     trainer.train(start_episode=start_ep, end_episode=args.episodes)
 

@@ -5,7 +5,8 @@ This module handles:
 1. Writing critical flows to file
 2. Running CFRRLTrainingRunner as subprocess
 3. Reading results (episode_summary.json, flow_summary.csv, link_stats.csv)
-4. Error handling and timeouts
+4. Computing dense rewards from per-packet latency data
+5. Error handling and timeouts
 """
 
 import subprocess
@@ -197,6 +198,13 @@ class EpisodeRunner:
         else:
             results['link_stats'] = pd.DataFrame()
         
+        # Latency results (CSV) - for dense rewards
+        latency_file = output_dir / "latency_results.csv"
+        if latency_file.exists():
+            results['latency_file'] = str(latency_file)
+        else:
+            results['latency_file'] = None
+        
         return results
     
     def cleanup_episode(self, output_dir: str) -> None:
@@ -220,6 +228,10 @@ class EpisodeRunner:
                 shutil.rmtree(result_path)
 
 
+# =============================================================================
+# REWARD COMPUTATION
+# =============================================================================
+
 def compute_reward(
     episode_summary: Dict[str, Any],
     queuing_weight: float = 1.0,
@@ -227,7 +239,7 @@ def compute_reward(
     normalize_queuing: float = 1000.0,  # Convert ms to seconds
 ) -> float:
     """
-    Compute reward from episode summary.
+    Compute sparse reward from episode summary.
     
     Reward = -mean_queuing - drop_penalty * drop_rate
     
@@ -251,6 +263,226 @@ def compute_reward(
     return reward
 
 
+def compute_dense_rewards(
+    latency_file: str,
+    window_size: float = 1.0,
+    queuing_weight: float = 1.0,
+    drop_penalty: float = 10.0,
+    gamma: float = 0.99,
+    critical_only: bool = True,
+    fallback_to_all: bool = True,
+) -> Dict[str, Any]:
+    """
+    Compute dense rewards from per-packet latency data.
+    
+    Bins packets into time windows and computes per-window rewards.
+    Returns both window-level rewards and the discounted total.
+    
+    Args:
+        latency_file: Path to latency_results.csv from CloudSim
+        window_size: Size of each time window in seconds (default: 1.0)
+        queuing_weight: Weight on mean queuing delay
+        drop_penalty: Penalty for drops (applied per window based on drop count)
+        gamma: Discount factor for computing total reward (default: 0.99)
+        critical_only: If True, compute rewards only on critical flow packets
+        fallback_to_all: If True and no critical packets in window, use all packets
+    
+    Returns:
+        Dictionary containing:
+            'window_rewards': List[Tuple[float, float]] - (window_start_time, reward)
+            'window_stats': List[Dict] - detailed stats per window
+            'total_reward': float - discounted sum of window rewards
+            'total_reward_undiscounted': float - simple sum of window rewards
+            'num_windows': int
+            'critical_packets': int
+            'background_packets': int
+            'total_packets': int
+            'episode_duration': float
+            'mean_window_reward': float
+            'std_window_reward': float
+    """
+    # Read latency data
+    try:
+        df = pd.read_csv(latency_file)
+    except Exception as e:
+        return {
+            'error': f"Failed to read latency file: {e}",
+            'window_rewards': [],
+            'total_reward': 0.0,
+            'num_windows': 0,
+        }
+    
+    if df.empty:
+        return {
+            'error': "Empty latency file",
+            'window_rewards': [],
+            'total_reward': 0.0,
+            'num_windows': 0,
+        }
+    
+    # Ensure required columns exist
+    required_cols = ['timestamp', 'queuing_delay', 'is_critical']
+    for col in required_cols:
+        if col not in df.columns:
+            return {
+                'error': f"Missing required column: {col}",
+                'window_rewards': [],
+                'total_reward': 0.0,
+                'num_windows': 0,
+            }
+    
+    # Convert is_critical to boolean if needed
+    if df['is_critical'].dtype == object:
+        df['is_critical'] = df['is_critical'].str.lower() == 'true'
+    
+    # Get episode time range
+    min_time = df['timestamp'].min()
+    max_time = df['timestamp'].max()
+    episode_duration = max_time - min_time
+    
+    # Calculate number of windows
+    num_windows = max(1, int(np.ceil(episode_duration / window_size)))
+    
+    # Assign each packet to a window
+    df['window'] = ((df['timestamp'] - min_time) / window_size).astype(int)
+    df['window'] = df['window'].clip(upper=num_windows - 1)  # Handle edge case
+    
+    # Count packets
+    critical_packets = df['is_critical'].sum()
+    background_packets = len(df) - critical_packets
+    
+    # Compute per-window rewards
+    window_rewards = []
+    window_stats = []
+    
+    for w in range(num_windows):
+        window_start = min_time + w * window_size
+        window_data = df[df['window'] == w]
+        
+        # Filter to critical packets if requested
+        if critical_only:
+            critical_data = window_data[window_data['is_critical']]
+            if len(critical_data) > 0:
+                use_data = critical_data
+            elif fallback_to_all and len(window_data) > 0:
+                use_data = window_data  # Fallback to all packets
+            else:
+                use_data = pd.DataFrame()  # Empty
+        else:
+            use_data = window_data
+        
+        # Compute window statistics
+        if len(use_data) > 0:
+            mean_queuing = use_data['queuing_delay'].mean()
+            max_queuing = use_data['queuing_delay'].max()
+            packet_count = len(use_data)
+            critical_count = use_data['is_critical'].sum() if 'is_critical' in use_data.columns else 0
+            
+            # Reward: negative queuing delay (already in seconds)
+            # Note: queuing_delay in CSV is in seconds, not ms
+            window_reward = -queuing_weight * mean_queuing
+        else:
+            # No packets in this window - neutral reward
+            mean_queuing = 0.0
+            max_queuing = 0.0
+            packet_count = 0
+            critical_count = 0
+            window_reward = 0.0
+        
+        window_rewards.append((window_start, window_reward))
+        window_stats.append({
+            'window': w,
+            'start_time': window_start,
+            'end_time': window_start + window_size,
+            'packet_count': packet_count,
+            'critical_count': critical_count,
+            'mean_queuing_s': mean_queuing,
+            'max_queuing_s': max_queuing,
+            'reward': window_reward,
+        })
+    
+    # Compute total reward (discounted sum)
+    rewards_only = [r for _, r in window_rewards]
+    total_discounted = sum(
+        (gamma ** t) * r for t, r in enumerate(rewards_only)
+    )
+    total_undiscounted = sum(rewards_only)
+    
+    # Statistics
+    rewards_array = np.array(rewards_only)
+    mean_reward = np.mean(rewards_array) if len(rewards_array) > 0 else 0.0
+    std_reward = np.std(rewards_array) if len(rewards_array) > 0 else 0.0
+    
+    return {
+        'window_rewards': window_rewards,
+        'window_stats': window_stats,
+        'total_reward': total_discounted,
+        'total_reward_undiscounted': total_undiscounted,
+        'num_windows': num_windows,
+        'critical_packets': int(critical_packets),
+        'background_packets': int(background_packets),
+        'total_packets': len(df),
+        'episode_duration': episode_duration,
+        'mean_window_reward': mean_reward,
+        'std_window_reward': std_reward,
+        'window_size': window_size,
+        'gamma': gamma,
+    }
+
+
+def compute_dense_reward_from_results(
+    results: Dict[str, Any],
+    window_size: float = 1.0,
+    queuing_weight: float = 1.0,
+    drop_penalty: float = 10.0,
+    gamma: float = 0.99,
+    critical_only: bool = True,
+) -> Dict[str, Any]:
+    """
+    Convenience function to compute dense rewards from episode results.
+    
+    Args:
+        results: Dictionary returned by EpisodeRunner.run_episode()
+        window_size: Size of time windows in seconds
+        queuing_weight: Weight on queuing delay
+        drop_penalty: Penalty for drops
+        gamma: Discount factor
+        critical_only: Use only critical flow packets
+    
+    Returns:
+        Dense reward dictionary (same as compute_dense_rewards)
+    """
+    latency_file = results.get('latency_file')
+    
+    if latency_file is None:
+        # Fall back to sparse reward
+        sparse_reward = compute_reward(
+            results.get('episode_summary', {}),
+            queuing_weight=queuing_weight,
+            drop_penalty=drop_penalty,
+        )
+        return {
+            'error': "No latency file available, using sparse reward",
+            'window_rewards': [(0.0, sparse_reward)],
+            'total_reward': sparse_reward,
+            'num_windows': 1,
+            'fallback': True,
+        }
+    
+    return compute_dense_rewards(
+        latency_file=latency_file,
+        window_size=window_size,
+        queuing_weight=queuing_weight,
+        drop_penalty=drop_penalty,
+        gamma=gamma,
+        critical_only=critical_only,
+    )
+
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
 def parse_link_id(link_id: str) -> Tuple[str, str]:
     """Parse link ID like 'Switch: Denver->Switch: KansasCity' into (src, dst)."""
     parts = link_id.split('->')
@@ -259,29 +491,93 @@ def parse_link_id(link_id: str) -> Tuple[str, str]:
     return link_id, link_id
 
 
+def compare_sparse_vs_dense(
+    latency_file: str,
+    episode_summary: Dict[str, Any],
+    window_size: float = 1.0,
+) -> Dict[str, Any]:
+    """
+    Compare sparse and dense reward computation for debugging/analysis.
+    
+    Args:
+        latency_file: Path to latency_results.csv
+        episode_summary: Dict from episode_summary.json
+        window_size: Window size for dense rewards
+    
+    Returns:
+        Dictionary with comparison statistics
+    """
+    sparse_reward = compute_reward(episode_summary)
+    dense_result = compute_dense_rewards(latency_file, window_size=window_size)
+    
+    return {
+        'sparse_reward': sparse_reward,
+        'dense_reward_discounted': dense_result.get('total_reward', 0),
+        'dense_reward_undiscounted': dense_result.get('total_reward_undiscounted', 0),
+        'difference_discounted': dense_result.get('total_reward', 0) - sparse_reward,
+        'num_windows': dense_result.get('num_windows', 0),
+        'critical_packets': dense_result.get('critical_packets', 0),
+        'total_packets': dense_result.get('total_packets', 0),
+        'critical_ratio': (
+            dense_result.get('critical_packets', 0) / dense_result.get('total_packets', 1)
+            if dense_result.get('total_packets', 0) > 0 else 0
+        ),
+        'window_stats': dense_result.get('window_stats', []),
+    }
+
+
 # =============================================================================
-# Testing
+# TESTING
 # =============================================================================
 
 if __name__ == "__main__":
     print("EpisodeRunner test")
-    print("==================")
+    print("=" * 60)
     
-    # Test reward computation
+    # Test sparse reward computation
     test_summary = {
-        'mean_queuing_ms': 14.06,
+        'mean_queuing_ms': 542.0,
         'drop_rate': 0.0,
-        'total_packets': 51
+        'total_packets': 1991
     }
-    reward = compute_reward(test_summary)
-    print(f"\nTest reward computation:")
+    sparse_reward = compute_reward(test_summary)
+    print(f"\nSparse reward computation:")
     print(f"  Summary: {test_summary}")
-    print(f"  Reward: {reward:.6f}")
-    print(f"  Expected: {-14.06/1000 - 10*0:.6f}")
+    print(f"  Reward: {sparse_reward:.6f}")
+    print(f"  Expected: {-542.0/1000:.6f}")
+    
+    # Test dense reward computation (if latency file exists)
+    test_latency_file = "latency_results.csv"
+    if Path(test_latency_file).exists():
+        print(f"\n" + "=" * 60)
+        print("Dense reward computation test:")
+        dense_result = compute_dense_rewards(test_latency_file, window_size=1.0)
+        
+        print(f"  Num windows: {dense_result.get('num_windows', 0)}")
+        print(f"  Total packets: {dense_result.get('total_packets', 0)}")
+        print(f"  Critical packets: {dense_result.get('critical_packets', 0)}")
+        print(f"  Episode duration: {dense_result.get('episode_duration', 0):.2f}s")
+        print(f"  Total reward (discounted): {dense_result.get('total_reward', 0):.6f}")
+        print(f"  Total reward (undiscounted): {dense_result.get('total_reward_undiscounted', 0):.6f}")
+        print(f"  Mean window reward: {dense_result.get('mean_window_reward', 0):.6f}")
+        print(f"  Std window reward: {dense_result.get('std_window_reward', 0):.6f}")
+        
+        # Show per-window breakdown
+        print(f"\n  Per-window breakdown:")
+        for ws in dense_result.get('window_stats', [])[:5]:  # First 5 windows
+            print(f"    Window {ws['window']}: t={ws['start_time']:.1f}-{ws['end_time']:.1f}s, "
+                  f"packets={ws['packet_count']}, critical={ws['critical_count']}, "
+                  f"mean_q={ws['mean_queuing_s']*1000:.1f}ms, r={ws['reward']:.4f}")
+        
+        if dense_result.get('num_windows', 0) > 5:
+            print(f"    ... ({dense_result['num_windows'] - 5} more windows)")
+    else:
+        print(f"\n[Skipping dense reward test - {test_latency_file} not found]")
     
     # Test link ID parsing
+    print(f"\n" + "=" * 60)
     test_link = "Switch: Denver->Switch: KansasCity"
     src, dst = parse_link_id(test_link)
-    print(f"\nLink parsing: '{test_link}'")
+    print(f"Link parsing: '{test_link}'")
     print(f"  src: {src}")
     print(f"  dst: {dst}")
