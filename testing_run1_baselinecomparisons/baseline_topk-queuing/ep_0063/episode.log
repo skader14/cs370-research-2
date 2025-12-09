@@ -1,0 +1,1209 @@
+================================================================================
+CFR-RL DEBUG LOG
+Started: 2025-12-09 10:22:28
+Log file: C:\Users\saifk\CS370\Code\round2\cloudsimsdn\testing_run1_baselinecomparisons\baseline_topk-queuing\ep_0063\episode.log
+================================================================================
+
+Format: [WallClock] [SimTime] [Level] [Component] Message
+
+[10:22:28.545] [t=    0.00] [INFO ] [TrainingRunner ] === EPISODE START (Fat-Tree k=4) ===
+[10:22:28.549] [t=    0.00] [INFO ] [TrainingRunner ] Workload: testing_run1_baselinecomparisons\shared_workloads\workload_ep_0063.csv
+[10:22:28.549] [t=    0.00] [INFO ] [TrainingRunner ] Critical flows: testing_run1_baselinecomparisons\baseline_topk-queuing\ep_0063\critical_flows.txt
+[10:22:28.554] [t=    0.00] [INFO ] [TrainingRunner ] Output dir: testing_run1_baselinecomparisons\baseline_topk-queuing\ep_0063/
+[10:22:28.558] [t=    0.00] [INFO ] [TrainingRunner ] Loaded 12 critical flows: [228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239]
+[10:22:28.561] [t=    0.00] [INFO ] [LatencyCollector] Initialized
+[10:22:28.566] [t=    0.00] [INFO ] [LatencyCollector] Reset for new simulation
+[10:22:28.569] [t=    0.00] [INFO ] [LinkStatsCollector] Reset for new episode
+[10:22:28.571] [t=    0.00] [INFO ] [LatencyCollector] CSV export initialized: testing_run1_baselinecomparisons\baseline_topk-queuing\ep_0063/latency_results.csv
+[10:22:28.572] [t=    0.00] [INFO ] [LatencyCollector] Critical flows updated: 12 flows
+[10:22:28.652] [t=    0.00] [INFO ] [TrainingRunner ] Loading Fat-Tree topology: dataset-fattree/fattree-physical.json
+[10:22:28.690] [t=    0.00] [INFO ] [TopoParser     ] Switch c_0_0 (core) bandwidth: 1000000 bps
+[10:22:28.719] [t=    0.00] [INFO ] [TopoParser     ] Switch c_0_1 (core) bandwidth: 1000000 bps
+[10:22:28.723] [t=    0.00] [INFO ] [TopoParser     ] Switch c_1_0 (core) bandwidth: 1000000 bps
+[10:22:28.724] [t=    0.00] [INFO ] [TopoParser     ] Switch c_1_1 (core) bandwidth: 1000000 bps
+[10:22:28.724] [t=    0.00] [INFO ] [TopoParser     ] Switch e_0_0 (edge) bandwidth: 1000000 bps
+[10:22:28.727] [t=    0.00] [INFO ] [TopoParser     ] Switch a_0_0 (aggregate) bandwidth: 1000000 bps
+[10:22:28.727] [t=    0.00] [INFO ] [TopoParser     ] Host h_0_0_0 bandwidth: 1000000 bps
+[10:22:28.739] [t=    0.00] [INFO ] [TopoParser     ] Host h_0_0_1 bandwidth: 1000000 bps
+[10:22:28.739] [t=    0.00] [INFO ] [TopoParser     ] Switch e_0_1 (edge) bandwidth: 1000000 bps
+[10:22:28.740] [t=    0.00] [INFO ] [TopoParser     ] Switch a_0_1 (aggregate) bandwidth: 1000000 bps
+[10:22:28.740] [t=    0.00] [INFO ] [TopoParser     ] Host h_0_1_0 bandwidth: 1000000 bps
+[10:22:28.741] [t=    0.00] [INFO ] [TopoParser     ] Host h_0_1_1 bandwidth: 1000000 bps
+[10:22:28.741] [t=    0.00] [INFO ] [TopoParser     ] Switch e_1_0 (edge) bandwidth: 1000000 bps
+[10:22:28.741] [t=    0.00] [INFO ] [TopoParser     ] Switch a_1_0 (aggregate) bandwidth: 1000000 bps
+[10:22:28.742] [t=    0.00] [INFO ] [TopoParser     ] Host h_1_0_0 bandwidth: 1000000 bps
+[10:22:28.743] [t=    0.00] [INFO ] [TopoParser     ] Host h_1_0_1 bandwidth: 1000000 bps
+[10:22:28.745] [t=    0.00] [INFO ] [TopoParser     ] Switch e_1_1 (edge) bandwidth: 1000000 bps
+[10:22:28.745] [t=    0.00] [INFO ] [TopoParser     ] Switch a_1_1 (aggregate) bandwidth: 1000000 bps
+[10:22:28.746] [t=    0.00] [INFO ] [TopoParser     ] Host h_1_1_0 bandwidth: 1000000 bps
+[10:22:28.746] [t=    0.00] [INFO ] [TopoParser     ] Host h_1_1_1 bandwidth: 1000000 bps
+[10:22:28.746] [t=    0.00] [INFO ] [TopoParser     ] Switch e_2_0 (edge) bandwidth: 1000000 bps
+[10:22:28.746] [t=    0.00] [INFO ] [TopoParser     ] Switch a_2_0 (aggregate) bandwidth: 1000000 bps
+[10:22:28.747] [t=    0.00] [INFO ] [TopoParser     ] Host h_2_0_0 bandwidth: 1000000 bps
+[10:22:28.747] [t=    0.00] [INFO ] [TopoParser     ] Host h_2_0_1 bandwidth: 1000000 bps
+[10:22:28.747] [t=    0.00] [INFO ] [TopoParser     ] Switch e_2_1 (edge) bandwidth: 1000000 bps
+[10:22:28.747] [t=    0.00] [INFO ] [TopoParser     ] Switch a_2_1 (aggregate) bandwidth: 1000000 bps
+[10:22:28.748] [t=    0.00] [INFO ] [TopoParser     ] Host h_2_1_0 bandwidth: 1000000 bps
+[10:22:28.748] [t=    0.00] [INFO ] [TopoParser     ] Host h_2_1_1 bandwidth: 1000000 bps
+[10:22:28.748] [t=    0.00] [INFO ] [TopoParser     ] Switch e_3_0 (edge) bandwidth: 1000000 bps
+[10:22:28.748] [t=    0.00] [INFO ] [TopoParser     ] Switch a_3_0 (aggregate) bandwidth: 1000000 bps
+[10:22:28.748] [t=    0.00] [INFO ] [TopoParser     ] Host h_3_0_0 bandwidth: 1000000 bps
+[10:22:28.749] [t=    0.00] [INFO ] [TopoParser     ] Host h_3_0_1 bandwidth: 1000000 bps
+[10:22:28.749] [t=    0.00] [INFO ] [TopoParser     ] Switch e_3_1 (edge) bandwidth: 1000000 bps
+[10:22:28.749] [t=    0.00] [INFO ] [TopoParser     ] Switch a_3_1 (aggregate) bandwidth: 1000000 bps
+[10:22:28.749] [t=    0.00] [INFO ] [TopoParser     ] Host h_3_1_0 bandwidth: 1000000 bps
+[10:22:28.750] [t=    0.00] [INFO ] [TopoParser     ] Host h_3_1_1 bandwidth: 1000000 bps
+[10:22:28.752] [t=    0.00] [INFO ] [TopoParser     ] Link a_0_0->e_0_0 bw: 1000000 bps
+[10:22:28.754] [t=    0.00] [INFO ] [TopoParser     ] Link a_0_0->c_0_0 bw: 1000000 bps
+[10:22:28.755] [t=    0.00] [INFO ] [TopoParser     ] Link a_0_0->c_0_1 bw: 1000000 bps
+[10:22:28.755] [t=    0.00] [INFO ] [TopoParser     ] Link e_0_0->h_0_0_0 bw: 1000000 bps
+[10:22:28.755] [t=    0.00] [INFO ] [TopoParser     ] Link e_0_0->h_0_0_1 bw: 1000000 bps
+[10:22:28.755] [t=    0.00] [INFO ] [TopoParser     ] Link a_0_1->e_0_1 bw: 1000000 bps
+[10:22:28.755] [t=    0.00] [INFO ] [TopoParser     ] Link a_0_1->e_0_0 bw: 1000000 bps
+[10:22:28.755] [t=    0.00] [INFO ] [TopoParser     ] Link a_0_0->e_0_1 bw: 1000000 bps
+[10:22:28.755] [t=    0.00] [INFO ] [TopoParser     ] Link a_0_1->c_1_0 bw: 1000000 bps
+[10:22:28.756] [t=    0.00] [INFO ] [TopoParser     ] Link a_0_1->c_1_1 bw: 1000000 bps
+[10:22:28.756] [t=    0.00] [INFO ] [TopoParser     ] Link e_0_1->h_0_1_0 bw: 1000000 bps
+[10:22:28.756] [t=    0.00] [INFO ] [TopoParser     ] Link e_0_1->h_0_1_1 bw: 1000000 bps
+[10:22:28.756] [t=    0.00] [INFO ] [TopoParser     ] Link a_1_0->e_1_0 bw: 1000000 bps
+[10:22:28.756] [t=    0.00] [INFO ] [TopoParser     ] Link a_1_0->c_0_0 bw: 1000000 bps
+[10:22:28.756] [t=    0.00] [INFO ] [TopoParser     ] Link a_1_0->c_0_1 bw: 1000000 bps
+[10:22:28.756] [t=    0.00] [INFO ] [TopoParser     ] Link e_1_0->h_1_0_0 bw: 1000000 bps
+[10:22:28.756] [t=    0.00] [INFO ] [TopoParser     ] Link e_1_0->h_1_0_1 bw: 1000000 bps
+[10:22:28.756] [t=    0.00] [INFO ] [TopoParser     ] Link a_1_1->e_1_1 bw: 1000000 bps
+[10:22:28.756] [t=    0.00] [INFO ] [TopoParser     ] Link a_1_1->e_1_0 bw: 1000000 bps
+[10:22:28.757] [t=    0.00] [INFO ] [TopoParser     ] Link a_1_0->e_1_1 bw: 1000000 bps
+[10:22:28.757] [t=    0.00] [INFO ] [TopoParser     ] Link a_1_1->c_1_0 bw: 1000000 bps
+[10:22:28.757] [t=    0.00] [INFO ] [TopoParser     ] Link a_1_1->c_1_1 bw: 1000000 bps
+[10:22:28.757] [t=    0.00] [INFO ] [TopoParser     ] Link e_1_1->h_1_1_0 bw: 1000000 bps
+[10:22:28.757] [t=    0.00] [INFO ] [TopoParser     ] Link e_1_1->h_1_1_1 bw: 1000000 bps
+[10:22:28.758] [t=    0.00] [INFO ] [TopoParser     ] Link a_2_0->e_2_0 bw: 1000000 bps
+[10:22:28.758] [t=    0.00] [INFO ] [TopoParser     ] Link a_2_0->c_0_0 bw: 1000000 bps
+[10:22:28.758] [t=    0.00] [INFO ] [TopoParser     ] Link a_2_0->c_0_1 bw: 1000000 bps
+[10:22:28.758] [t=    0.00] [INFO ] [TopoParser     ] Link e_2_0->h_2_0_0 bw: 1000000 bps
+[10:22:28.758] [t=    0.00] [INFO ] [TopoParser     ] Link e_2_0->h_2_0_1 bw: 1000000 bps
+[10:22:28.758] [t=    0.00] [INFO ] [TopoParser     ] Link a_2_1->e_2_1 bw: 1000000 bps
+[10:22:28.758] [t=    0.00] [INFO ] [TopoParser     ] Link a_2_1->e_2_0 bw: 1000000 bps
+[10:22:28.758] [t=    0.00] [INFO ] [TopoParser     ] Link a_2_0->e_2_1 bw: 1000000 bps
+[10:22:28.759] [t=    0.00] [INFO ] [TopoParser     ] Link a_2_1->c_1_0 bw: 1000000 bps
+[10:22:28.760] [t=    0.00] [INFO ] [TopoParser     ] Link a_2_1->c_1_1 bw: 1000000 bps
+[10:22:28.760] [t=    0.00] [INFO ] [TopoParser     ] Link e_2_1->h_2_1_0 bw: 1000000 bps
+[10:22:28.760] [t=    0.00] [INFO ] [TopoParser     ] Link e_2_1->h_2_1_1 bw: 1000000 bps
+[10:22:28.760] [t=    0.00] [INFO ] [TopoParser     ] Link a_3_0->e_3_0 bw: 1000000 bps
+[10:22:28.760] [t=    0.00] [INFO ] [TopoParser     ] Link a_3_0->c_0_0 bw: 1000000 bps
+[10:22:28.760] [t=    0.00] [INFO ] [TopoParser     ] Link a_3_0->c_0_1 bw: 1000000 bps
+[10:22:28.760] [t=    0.00] [INFO ] [TopoParser     ] Link e_3_0->h_3_0_0 bw: 1000000 bps
+[10:22:28.762] [t=    0.00] [INFO ] [TopoParser     ] Link e_3_0->h_3_0_1 bw: 1000000 bps
+[10:22:28.762] [t=    0.00] [INFO ] [TopoParser     ] Link a_3_1->e_3_1 bw: 1000000 bps
+[10:22:28.762] [t=    0.00] [INFO ] [TopoParser     ] Link a_3_1->e_3_0 bw: 1000000 bps
+[10:22:28.762] [t=    0.00] [INFO ] [TopoParser     ] Link a_3_0->e_3_1 bw: 1000000 bps
+[10:22:28.762] [t=    0.00] [INFO ] [TopoParser     ] Link a_3_1->c_1_0 bw: 1000000 bps
+[10:22:28.762] [t=    0.00] [INFO ] [TopoParser     ] Link a_3_1->c_1_1 bw: 1000000 bps
+[10:22:28.762] [t=    0.00] [INFO ] [TopoParser     ] Link e_3_1->h_3_1_0 bw: 1000000 bps
+[10:22:28.762] [t=    0.00] [INFO ] [TopoParser     ] Link e_3_1->h_3_1_1 bw: 1000000 bps
+[10:22:28.762] [t=    0.00] [INFO ] [TopoParser     ] Total links created: 48
+[10:22:28.781] [t=    0.00] [INFO ] [TrainingRunner ] Physical topology loaded: 16 hosts
+[10:22:28.783] [t=    0.00] [INFO ] [LinkPolicy     ] Created with K=12
+[10:22:28.784] [t=    0.00] [INFO ] [LinkPolicy     ] Verbose logging: false
+[10:22:28.784] [t=    0.00] [INFO ] [LinkPolicy     ] Updated critical flows: 12 total (added: [228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239], removed: [])
+[10:22:28.784] [t=    0.00] [INFO ] [TrainingRunner ] Critical flows set on policy
+[10:22:28.791] [t=    0.00] [INFO ] [TrainingRunner ] Virtual topology deployed
+[10:22:28.792] [t=    0.00] [INFO ] [TrainingRunner ] Submitting workload: testing_run1_baselinecomparisons\shared_workloads\workload_ep_0063.csv
+[10:22:28.792] [t=    0.00] [INFO ] [TrainingRunner ] Starting simulation...
+[10:22:29.019] [t=    0.29] [DEBUG] [LatencyCollector] High queuing: flow=224, queue=0.1406s, serve=0.1588s, path=2 hops
+[10:22:29.045] [t=    0.39] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=0.1740s, serve=0.2354s, path=6 hops
+[10:22:29.089] [t=    0.67] [DEBUG] [LatencyCollector] High queuing: flow=129, queue=0.1986s, serve=0.3775s, path=4 hops
+[10:22:29.089] [t=    0.67] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=0.1392s, serve=0.2656s, path=6 hops
+[10:22:29.095] [t=    0.68] [DEBUG] [LatencyCollector] High queuing: flow=226, queue=0.1915s, serve=0.5397s, path=6 hops
+[10:22:29.105] [t=    0.70] [DEBUG] [LatencyCollector] High queuing: flow=238, queue=0.2754s, serve=0.3528s, path=4 hops
+[10:22:29.105] [t=    0.70] [DEBUG] [SDNDatacenter  ] Pkt #100: flow=238, serve=0.3528s, prop=0.0000s, tx=0.0774s, queue=0.2754s, path=4
+[10:22:29.119] [t=    0.74] [DEBUG] [LatencyCollector] High queuing: flow=138, queue=0.1036s, serve=0.2190s, path=6 hops
+[10:22:29.143] [t=    0.83] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=0.1536s, serve=0.2352s, path=6 hops
+[10:22:29.201] [t=    1.00] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=0.1006s, serve=0.3199s, path=6 hops
+[10:22:29.204] [t=    1.01] [DEBUG] [LatencyCollector] High queuing: flow=218, queue=0.3787s, serve=0.4420s, path=6 hops
+[10:22:29.206] [t=    1.02] [DEBUG] [LatencyCollector] High queuing: flow=67, queue=0.1069s, serve=0.2826s, path=6 hops
+[10:22:29.211] [t=    1.03] [DEBUG] [LatencyCollector] High queuing: flow=223, queue=0.5357s, serve=0.6276s, path=4 hops
+[10:22:29.215] [t=    1.07] [DEBUG] [LatencyCollector] High queuing: flow=186, queue=0.1655s, serve=0.7699s, path=6 hops
+[10:22:29.239] [t=    1.15] [DEBUG] [LatencyCollector] High queuing: flow=162, queue=0.1177s, serve=0.3133s, path=6 hops
+[10:22:29.245] [t=    1.20] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=0.1470s, serve=0.3109s, path=6 hops
+[10:22:29.252] [t=    1.26] [DEBUG] [LatencyCollector] High queuing: flow=191, queue=0.2484s, serve=0.5073s, path=6 hops
+[10:22:29.260] [t=    1.29] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=0.1817s, serve=0.2535s, path=6 hops
+[10:22:29.262] [t=    1.29] [DEBUG] [LatencyCollector] High queuing: flow=17, queue=0.1281s, serve=0.2250s, path=4 hops
+[10:22:29.264] [t=    1.31] [DEBUG] [LatencyCollector] High queuing: flow=153, queue=0.1833s, serve=0.4763s, path=6 hops
+[10:22:29.264] [t=    1.31] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=0.2407s, serve=0.4142s, path=6 hops
+[10:22:29.271] [t=    1.35] [DEBUG] [SDNDatacenter  ] Pkt #200: flow=192, serve=0.1018s, prop=0.0000s, tx=0.0929s, queue=0.0089s, path=2
+[10:22:29.273] [t=    1.39] [DEBUG] [LatencyCollector] High queuing: flow=213, queue=0.1649s, serve=0.5987s, path=6 hops
+[10:22:29.274] [t=    1.39] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=0.1975s, serve=0.2675s, path=6 hops
+[10:22:29.276] [t=    1.39] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=0.1019s, serve=0.2684s, path=6 hops
+[10:22:29.286] [t=    1.50] [DEBUG] [LatencyCollector] High queuing: flow=194, queue=0.1094s, serve=0.4768s, path=4 hops
+[10:22:29.286] [t=    1.50] [DEBUG] [LatencyCollector] High queuing: flow=109, queue=0.1906s, serve=0.2769s, path=4 hops
+[10:22:29.286] [t=    1.50] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=0.1006s, serve=0.1775s, path=6 hops
+[10:22:29.287] [t=    1.50] [DEBUG] [LatencyCollector] High queuing: flow=108, queue=0.2166s, serve=0.4641s, path=6 hops
+[10:22:29.287] [t=    1.50] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=0.3155s, serve=0.6939s, path=6 hops
+[10:22:29.288] [t=    1.51] [DEBUG] [LatencyCollector] High queuing: flow=182, queue=0.1317s, serve=0.2943s, path=6 hops
+[10:22:29.295] [t=    1.58] [DEBUG] [LatencyCollector] High queuing: flow=185, queue=0.3668s, serve=0.7740s, path=6 hops
+[10:22:29.295] [t=    1.59] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=0.6676s, serve=0.7556s, path=6 hops
+[10:22:29.295] [t=    1.61] [DEBUG] [LatencyCollector] High queuing: flow=191, queue=0.1488s, serve=0.5100s, path=6 hops
+[10:22:29.295] [t=    1.65] [DEBUG] [LatencyCollector] High queuing: flow=194, queue=0.4979s, serve=0.6250s, path=4 hops
+[10:22:29.311] [t=    1.66] [DEBUG] [LatencyCollector] High queuing: flow=108, queue=0.1610s, serve=0.3385s, path=6 hops
+[10:22:29.312] [t=    1.66] [DEBUG] [LatencyCollector] High queuing: flow=9, queue=0.4044s, serve=0.6854s, path=6 hops
+[10:22:29.313] [t=    1.67] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=0.3228s, serve=0.4102s, path=6 hops
+[10:22:29.313] [t=    1.67] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=0.5419s, serve=0.6665s, path=6 hops
+[10:22:29.321] [t=    1.72] [DEBUG] [LatencyCollector] High queuing: flow=230, queue=0.1514s, serve=0.6403s, path=6 hops
+[10:22:29.322] [t=    1.72] [DEBUG] [LatencyCollector] High queuing: flow=191, queue=0.5143s, serve=0.6193s, path=6 hops
+[10:22:29.330] [t=    1.76] [DEBUG] [LatencyCollector] High queuing: flow=99, queue=0.1369s, serve=0.5028s, path=6 hops
+[10:22:29.330] [t=    1.76] [DEBUG] [LatencyCollector] High queuing: flow=82, queue=0.1364s, serve=0.5038s, path=6 hops
+[10:22:29.335] [t=    1.81] [DEBUG] [LatencyCollector] High queuing: flow=229, queue=0.5499s, serve=0.9436s, path=6 hops
+[10:22:29.335] [t=    1.81] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=0.5453s, serve=1.0265s, path=6 hops
+[10:22:29.340] [t=    1.86] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.6925s, serve=1.1423s, path=6 hops
+[10:22:29.342] [t=    1.88] [DEBUG] [LatencyCollector] High queuing: flow=231, queue=0.6869s, serve=0.9347s, path=6 hops
+[10:22:29.342] [t=    1.88] [DEBUG] [LatencyCollector] High queuing: flow=112, queue=0.1232s, serve=0.3789s, path=6 hops
+[10:22:29.342] [t=    1.88] [DEBUG] [LatencyCollector] High queuing: flow=82, queue=0.1231s, serve=0.2417s, path=6 hops
+[10:22:29.343] [t=    1.88] [DEBUG] [LatencyCollector] High queuing: flow=123, queue=0.1599s, serve=0.3097s, path=6 hops
+[10:22:29.347] [t=    1.90] [DEBUG] [SDNDatacenter  ] Pkt #300: flow=187, serve=0.1391s, prop=0.0000s, tx=0.1401s, queue=0.0000s, path=6
+[10:22:29.347] [t=    1.90] [DEBUG] [LatencyCollector] High queuing: flow=200, queue=0.1019s, serve=0.5497s, path=6 hops
+[10:22:29.353] [t=    1.93] [DEBUG] [LatencyCollector] High queuing: flow=230, queue=0.4791s, serve=0.6486s, path=6 hops
+[10:22:29.355] [t=    1.93] [DEBUG] [LatencyCollector] High queuing: flow=49, queue=0.1233s, serve=0.3418s, path=6 hops
+[10:22:29.356] [t=    1.94] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.8733s, serve=0.9727s, path=6 hops
+[10:22:29.359] [t=    1.95] [DEBUG] [LatencyCollector] High queuing: flow=110, queue=0.3773s, serve=1.0463s, path=4 hops
+[10:22:29.362] [t=    1.97] [DEBUG] [LatencyCollector] High queuing: flow=123, queue=0.1104s, serve=0.1977s, path=6 hops
+[10:22:29.365] [t=    1.99] [DEBUG] [LatencyCollector] High queuing: flow=229, queue=0.7356s, serve=0.8989s, path=6 hops
+[10:22:29.367] [t=    2.01] [DEBUG] [LatencyCollector] High queuing: flow=230, queue=0.2266s, serve=0.3070s, path=6 hops
+[10:22:29.370] [t=    2.05] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=0.1178s, serve=0.3120s, path=6 hops
+[10:22:29.380] [t=    2.15] [DEBUG] [LatencyCollector] High queuing: flow=110, queue=0.8448s, serve=1.0471s, path=4 hops
+[10:22:29.380] [t=    2.15] [DEBUG] [LatencyCollector] High queuing: flow=231, queue=0.9397s, serve=1.1926s, path=6 hops
+[10:22:29.385] [t=    2.18] [DEBUG] [LatencyCollector] High queuing: flow=102, queue=0.1786s, serve=0.8684s, path=6 hops
+[10:22:29.389] [t=    2.19] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.8091s, serve=1.1485s, path=6 hops
+[10:22:29.390] [t=    2.21] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=0.2267s, serve=0.3936s, path=6 hops
+[10:22:29.392] [t=    2.24] [DEBUG] [LatencyCollector] High queuing: flow=236, queue=0.2574s, serve=0.3759s, path=6 hops
+[10:22:29.399] [t=    2.26] [DEBUG] [LatencyCollector] High queuing: flow=239, queue=0.5080s, serve=0.8107s, path=2 hops
+[10:22:29.402] [t=    2.29] [DEBUG] [LatencyCollector] High queuing: flow=230, queue=0.2733s, serve=0.5123s, path=6 hops
+[10:22:29.409] [t=    2.33] [DEBUG] [LatencyCollector] High queuing: flow=191, queue=0.1785s, serve=0.9968s, path=6 hops
+[10:22:29.409] [t=    2.33] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=0.1140s, serve=0.3007s, path=6 hops
+[10:22:29.409] [t=    2.34] [DEBUG] [LatencyCollector] High queuing: flow=102, queue=0.7189s, serve=0.8964s, path=6 hops
+[10:22:29.412] [t=    2.36] [DEBUG] [LatencyCollector] High queuing: flow=138, queue=0.1065s, serve=0.2430s, path=6 hops
+[10:22:29.429] [t=    2.44] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=0.2834s, serve=0.3914s, path=6 hops
+[10:22:29.446] [t=    2.56] [DEBUG] [LatencyCollector] High queuing: flow=191, queue=0.5879s, serve=0.8077s, path=6 hops
+[10:22:29.447] [t=    2.56] [DEBUG] [SDNDatacenter  ] Pkt #400: flow=191, serve=0.8077s, prop=0.0000s, tx=0.2199s, queue=0.5879s, path=6
+[10:22:29.449] [t=    2.57] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.3851s, serve=0.9096s, path=6 hops
+[10:22:29.450] [t=    2.57] [DEBUG] [LatencyCollector] High queuing: flow=107, queue=0.3170s, serve=0.4635s, path=6 hops
+[10:22:29.452] [t=    2.59] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=0.4780s, serve=0.8716s, path=6 hops
+[10:22:29.454] [t=    2.60] [DEBUG] [LatencyCollector] High queuing: flow=102, queue=0.7244s, serve=0.9779s, path=6 hops
+[10:22:29.456] [t=    2.61] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.7572s, serve=1.2199s, path=6 hops
+[10:22:29.457] [t=    2.62] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=0.4679s, serve=0.8720s, path=4 hops
+[10:22:29.459] [t=    2.65] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=0.2015s, serve=0.3365s, path=6 hops
+[10:22:29.459] [t=    2.65] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=0.1560s, serve=0.4231s, path=6 hops
+[10:22:29.463] [t=    2.67] [DEBUG] [LatencyCollector] High queuing: flow=197, queue=0.1208s, serve=0.4769s, path=6 hops
+[10:22:29.468] [t=    2.69] [DEBUG] [LatencyCollector] High queuing: flow=116, queue=0.2787s, serve=0.4911s, path=6 hops
+[10:22:29.472] [t=    2.70] [DEBUG] [LatencyCollector] High queuing: flow=151, queue=0.1457s, serve=0.5713s, path=6 hops
+[10:22:29.472] [t=    2.71] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.8872s, serve=1.0510s, path=6 hops
+[10:22:29.476] [t=    2.73] [DEBUG] [LatencyCollector] High queuing: flow=239, queue=0.4347s, serve=0.8306s, path=2 hops
+[10:22:29.482] [t=    2.80] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=0.4064s, serve=0.5584s, path=4 hops
+[10:22:29.485] [t=    2.82] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=0.2099s, serve=0.3593s, path=6 hops
+[10:22:29.490] [t=    2.85] [DEBUG] [LatencyCollector] High queuing: flow=234, queue=0.2385s, serve=0.5840s, path=6 hops
+[10:22:29.495] [t=    2.88] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=0.3441s, serve=1.3816s, path=6 hops
+[10:22:29.498] [t=    2.91] [DEBUG] [LatencyCollector] High queuing: flow=197, queue=0.4417s, serve=0.7058s, path=6 hops
+[10:22:29.502] [t=    2.96] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=0.1950s, serve=0.3979s, path=6 hops
+[10:22:29.507] [t=    2.98] [DEBUG] [LatencyCollector] High queuing: flow=145, queue=0.3375s, serve=0.4620s, path=4 hops
+[10:22:29.510] [t=    3.01] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.1230s, serve=0.4640s, path=6 hops
+[10:22:29.516] [t=    3.04] [DEBUG] [LatencyCollector] High queuing: flow=168, queue=0.2952s, serve=0.8710s, path=6 hops
+[10:22:29.521] [t=    3.09] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=0.1645s, serve=0.7288s, path=6 hops
+[10:22:29.521] [t=    3.09] [DEBUG] [LatencyCollector] High queuing: flow=8, queue=0.1411s, serve=0.5655s, path=6 hops
+[10:22:29.521] [t=    3.09] [DEBUG] [SDNDatacenter  ] Pkt #500: flow=8, serve=0.5655s, prop=0.0000s, tx=0.4244s, queue=0.1411s, path=6
+[10:22:29.521] [t=    3.09] [DEBUG] [LatencyCollector] High queuing: flow=9, queue=0.3345s, serve=0.8432s, path=6 hops
+[10:22:29.523] [t=    3.11] [DEBUG] [LatencyCollector] High queuing: flow=113, queue=0.2281s, serve=0.9878s, path=6 hops
+[10:22:29.523] [t=    3.11] [DEBUG] [LatencyCollector] High queuing: flow=106, queue=0.2048s, serve=0.9844s, path=6 hops
+[10:22:29.523] [t=    3.11] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=0.2448s, serve=0.5551s, path=6 hops
+[10:22:29.525] [t=    3.13] [DEBUG] [LatencyCollector] High queuing: flow=17, queue=0.5300s, serve=0.9314s, path=4 hops
+[10:22:29.529] [t=    3.15] [DEBUG] [LatencyCollector] High queuing: flow=109, queue=0.2112s, serve=0.7350s, path=4 hops
+[10:22:29.532] [t=    3.17] [DEBUG] [LatencyCollector] High queuing: flow=162, queue=0.4832s, serve=0.7648s, path=6 hops
+[10:22:29.532] [t=    3.17] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=0.2915s, serve=0.6872s, path=6 hops
+[10:22:29.533] [t=    3.17] [DEBUG] [LatencyCollector] High queuing: flow=52, queue=0.1541s, serve=0.3992s, path=6 hops
+[10:22:29.535] [t=    3.21] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.3107s, serve=0.4686s, path=6 hops
+[10:22:29.537] [t=    3.22] [DEBUG] [LatencyCollector] High queuing: flow=183, queue=0.1003s, serve=0.3422s, path=6 hops
+[10:22:29.537] [t=    3.22] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=0.3004s, serve=0.6009s, path=6 hops
+[10:22:29.537] [t=    3.22] [DEBUG] [LatencyCollector] High queuing: flow=98, queue=0.1282s, serve=0.7239s, path=6 hops
+[10:22:29.542] [t=    3.23] [DEBUG] [LatencyCollector] High queuing: flow=109, queue=0.5320s, serve=0.6139s, path=4 hops
+[10:22:29.542] [t=    3.25] [DEBUG] [LatencyCollector] High queuing: flow=63, queue=0.2575s, serve=1.0648s, path=6 hops
+[10:22:29.545] [t=    3.27] [DEBUG] [LatencyCollector] High queuing: flow=111, queue=0.3683s, serve=1.1449s, path=2 hops
+[10:22:29.545] [t=    3.27] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=0.3194s, serve=1.4455s, path=6 hops
+[10:22:29.545] [t=    3.27] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=0.3110s, serve=0.4018s, path=6 hops
+[10:22:29.547] [t=    3.30] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.9467s, serve=1.5627s, path=6 hops
+[10:22:29.549] [t=    3.33] [DEBUG] [LatencyCollector] High queuing: flow=12, queue=0.6585s, serve=0.8883s, path=6 hops
+[10:22:29.549] [t=    3.34] [DEBUG] [LatencyCollector] High queuing: flow=239, queue=0.3193s, serve=0.4295s, path=2 hops
+[10:22:29.551] [t=    3.34] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.4742s, serve=0.5910s, path=6 hops
+[10:22:29.553] [t=    3.35] [DEBUG] [LatencyCollector] High queuing: flow=109, queue=0.5301s, serve=0.6525s, path=4 hops
+[10:22:29.558] [t=    3.41] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=0.8020s, serve=1.6025s, path=6 hops
+[10:22:29.562] [t=    3.45] [DEBUG] [LatencyCollector] High queuing: flow=111, queue=0.6988s, serve=0.8726s, path=2 hops
+[10:22:29.563] [t=    3.45] [DEBUG] [LatencyCollector] High queuing: flow=113, queue=0.3703s, serve=0.6986s, path=6 hops
+[10:22:29.567] [t=    3.51] [DEBUG] [LatencyCollector] High queuing: flow=87, queue=0.6281s, serve=1.5031s, path=6 hops
+[10:22:29.569] [t=    3.53] [DEBUG] [LatencyCollector] High queuing: flow=191, queue=0.1319s, serve=0.3106s, path=6 hops
+[10:22:29.570] [t=    3.54] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=0.5496s, serve=1.1666s, path=2 hops
+[10:22:29.570] [t=    3.54] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=0.5704s, serve=1.2778s, path=4 hops
+[10:22:29.570] [t=    3.54] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=0.9644s, serve=1.2055s, path=6 hops
+[10:22:29.583] [t=    3.64] [DEBUG] [LatencyCollector] High queuing: flow=234, queue=0.4418s, serve=1.2133s, path=6 hops
+[10:22:29.583] [t=    3.64] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.5401s, serve=1.7485s, path=6 hops
+[10:22:29.583] [t=    3.65] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=1.1444s, serve=1.2587s, path=4 hops
+[10:22:29.583] [t=    3.65] [DEBUG] [LatencyCollector] High queuing: flow=191, queue=0.2691s, serve=0.3984s, path=6 hops
+[10:22:29.583] [t=    3.65] [DEBUG] [LatencyCollector] High queuing: flow=201, queue=0.3430s, serve=0.4878s, path=6 hops
+[10:22:29.583] [t=    3.65] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.8531s, serve=1.1592s, path=6 hops
+[10:22:29.584] [t=    3.66] [DEBUG] [LatencyCollector] High queuing: flow=19, queue=0.1324s, serve=0.2810s, path=6 hops
+[10:22:29.584] [t=    3.66] [DEBUG] [SDNDatacenter  ] Pkt #600: flow=19, serve=0.2810s, prop=0.0000s, tx=0.1486s, queue=0.1324s, path=6
+[10:22:29.585] [t=    3.69] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=0.1557s, serve=1.2474s, path=6 hops
+[10:22:29.587] [t=    3.71] [DEBUG] [LatencyCollector] High queuing: flow=84, queue=0.4501s, serve=0.6656s, path=6 hops
+[10:22:29.590] [t=    3.72] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=0.3624s, serve=0.8531s, path=6 hops
+[10:22:29.595] [t=    3.76] [DEBUG] [LatencyCollector] High queuing: flow=111, queue=0.3596s, serve=0.6595s, path=2 hops
+[10:22:29.597] [t=    3.78] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=1.1892s, serve=1.4129s, path=6 hops
+[10:22:29.597] [t=    3.78] [DEBUG] [LatencyCollector] High queuing: flow=87, queue=1.5076s, serve=1.7503s, path=6 hops
+[10:22:29.600] [t=    3.81] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=1.1142s, serve=1.2636s, path=4 hops
+[10:22:29.600] [t=    3.81] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.2420s, serve=0.3872s, path=6 hops
+[10:22:29.601] [t=    3.81] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.4047s, serve=0.9434s, path=6 hops
+[10:22:29.608] [t=    3.87] [DEBUG] [LatencyCollector] High queuing: flow=102, queue=0.2526s, serve=1.4500s, path=6 hops
+[10:22:29.609] [t=    3.88] [DEBUG] [LatencyCollector] High queuing: flow=52, queue=0.1090s, serve=1.0410s, path=6 hops
+[10:22:29.610] [t=    3.88] [DEBUG] [LatencyCollector] High queuing: flow=206, queue=0.5025s, serve=1.3840s, path=6 hops
+[10:22:29.613] [t=    3.93] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.8978s, serve=1.0145s, path=6 hops
+[10:22:29.614] [t=    3.93] [DEBUG] [LatencyCollector] High queuing: flow=232, queue=0.1844s, serve=0.7782s, path=6 hops
+[10:22:29.615] [t=    3.94] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=0.5221s, serve=1.0187s, path=6 hops
+[10:22:29.617] [t=    3.95] [DEBUG] [LatencyCollector] High queuing: flow=87, queue=1.2537s, serve=1.4338s, path=6 hops
+[10:22:29.617] [t=    3.95] [DEBUG] [LatencyCollector] High queuing: flow=63, queue=0.5232s, serve=1.2029s, path=6 hops
+[10:22:29.618] [t=    3.96] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=1.0649s, serve=1.2109s, path=4 hops
+[10:22:29.619] [t=    3.97] [DEBUG] [LatencyCollector] High queuing: flow=54, queue=0.1055s, serve=0.2994s, path=6 hops
+[10:22:29.619] [t=    3.97] [DEBUG] [LatencyCollector] High queuing: flow=89, queue=0.3709s, serve=0.7859s, path=6 hops
+[10:22:29.622] [t=    3.98] [DEBUG] [LatencyCollector] High queuing: flow=189, queue=0.4886s, serve=1.1240s, path=6 hops
+[10:22:29.624] [t=    3.99] [DEBUG] [LatencyCollector] High queuing: flow=107, queue=0.2371s, serve=0.4669s, path=6 hops
+[10:22:29.627] [t=    4.01] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.2792s, serve=0.4845s, path=6 hops
+[10:22:29.627] [t=    4.04] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.7658s, serve=0.8661s, path=6 hops
+[10:22:29.627] [t=    4.04] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=1.3186s, serve=2.3404s, path=6 hops
+[10:22:29.629] [t=    4.05] [DEBUG] [LatencyCollector] High queuing: flow=233, queue=0.2785s, serve=1.1344s, path=6 hops
+[10:22:29.629] [t=    4.06] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.1969s, serve=2.1179s, path=6 hops
+[10:22:29.629] [t=    4.06] [DEBUG] [LatencyCollector] High queuing: flow=52, queue=0.6946s, serve=0.8838s, path=6 hops
+[10:22:29.631] [t=    4.07] [DEBUG] [LatencyCollector] High queuing: flow=102, queue=1.1386s, serve=1.3199s, path=6 hops
+[10:22:29.631] [t=    4.08] [DEBUG] [LatencyCollector] High queuing: flow=194, queue=0.3864s, serve=0.5533s, path=4 hops
+[10:22:29.631] [t=    4.09] [DEBUG] [LatencyCollector] High queuing: flow=206, queue=1.3664s, serve=1.5692s, path=6 hops
+[10:22:29.631] [t=    4.10] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.7373s, serve=2.1816s, path=6 hops
+[10:22:29.634] [t=    4.13] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=0.4684s, serve=0.7963s, path=6 hops
+[10:22:29.638] [t=    4.14] [DEBUG] [LatencyCollector] High queuing: flow=138, queue=0.7639s, serve=1.2829s, path=6 hops
+[10:22:29.643] [t=    4.16] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=0.6959s, serve=0.8050s, path=6 hops
+[10:22:29.644] [t=    4.16] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=0.1877s, serve=1.1329s, path=2 hops
+[10:22:29.644] [t=    4.16] [DEBUG] [LatencyCollector] High queuing: flow=87, queue=0.1710s, serve=0.3709s, path=6 hops
+[10:22:29.646] [t=    4.17] [DEBUG] [LatencyCollector] High queuing: flow=172, queue=0.1510s, serve=0.2954s, path=6 hops
+[10:22:29.647] [t=    4.19] [DEBUG] [LatencyCollector] High queuing: flow=225, queue=0.7446s, serve=1.1836s, path=6 hops
+[10:22:29.648] [t=    4.19] [DEBUG] [LatencyCollector] High queuing: flow=162, queue=0.4435s, serve=1.3542s, path=6 hops
+[10:22:29.648] [t=    4.19] [DEBUG] [SDNDatacenter  ] Pkt #700: flow=162, serve=1.3542s, prop=0.0000s, tx=0.9107s, queue=0.4435s, path=6
+[10:22:29.650] [t=    4.22] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=0.3387s, serve=0.7019s, path=6 hops
+[10:22:29.650] [t=    4.22] [DEBUG] [LatencyCollector] High queuing: flow=108, queue=0.4145s, serve=0.8401s, path=6 hops
+[10:22:29.650] [t=    4.22] [DEBUG] [LatencyCollector] High queuing: flow=39, queue=0.3433s, serve=0.4631s, path=6 hops
+[10:22:29.652] [t=    4.24] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=0.7910s, serve=1.0538s, path=4 hops
+[10:22:29.652] [t=    4.24] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=0.7275s, serve=1.0242s, path=6 hops
+[10:22:29.655] [t=    4.26] [DEBUG] [LatencyCollector] High queuing: flow=225, queue=0.2643s, serve=0.3311s, path=6 hops
+[10:22:29.660] [t=    4.29] [DEBUG] [LatencyCollector] High queuing: flow=69, queue=0.1417s, serve=0.4513s, path=6 hops
+[10:22:29.666] [t=    4.33] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.6434s, serve=1.8863s, path=6 hops
+[10:22:29.666] [t=    4.33] [DEBUG] [LatencyCollector] High queuing: flow=233, queue=0.3354s, serve=0.6272s, path=6 hops
+[10:22:29.666] [t=    4.34] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=0.7395s, serve=0.8301s, path=6 hops
+[10:22:29.668] [t=    4.35] [DEBUG] [LatencyCollector] High queuing: flow=138, queue=0.5938s, serve=0.8098s, path=6 hops
+[10:22:29.672] [t=    4.36] [DEBUG] [LatencyCollector] High queuing: flow=225, queue=0.2948s, serve=0.3689s, path=6 hops
+[10:22:29.675] [t=    4.36] [DEBUG] [LatencyCollector] High queuing: flow=52, queue=0.6714s, serve=0.9188s, path=6 hops
+[10:22:29.676] [t=    4.36] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=0.6699s, serve=0.9229s, path=6 hops
+[10:22:29.680] [t=    4.39] [DEBUG] [LatencyCollector] High queuing: flow=37, queue=0.1188s, serve=0.4887s, path=6 hops
+[10:22:29.680] [t=    4.39] [DEBUG] [LatencyCollector] High queuing: flow=206, queue=1.3349s, serve=1.6413s, path=6 hops
+[10:22:29.681] [t=    4.39] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=0.8388s, serve=1.4280s, path=6 hops
+[10:22:29.681] [t=    4.39] [DEBUG] [LatencyCollector] High queuing: flow=41, queue=0.2658s, serve=0.7850s, path=6 hops
+[10:22:29.682] [t=    4.40] [DEBUG] [LatencyCollector] High queuing: flow=208, queue=0.1355s, serve=0.9146s, path=4 hops
+[10:22:29.682] [t=    4.40] [DEBUG] [LatencyCollector] High queuing: flow=218, queue=0.4951s, serve=0.9567s, path=6 hops
+[10:22:29.684] [t=    4.41] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=0.6611s, serve=0.8441s, path=4 hops
+[10:22:29.685] [t=    4.43] [DEBUG] [LatencyCollector] High queuing: flow=207, queue=0.1680s, serve=0.2691s, path=2 hops
+[10:22:29.688] [t=    4.44] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=0.2957s, serve=1.3128s, path=2 hops
+[10:22:29.689] [t=    4.45] [DEBUG] [LatencyCollector] High queuing: flow=108, queue=0.1006s, serve=0.3487s, path=6 hops
+[10:22:29.691] [t=    4.45] [DEBUG] [LatencyCollector] High queuing: flow=69, queue=0.1432s, serve=0.3422s, path=6 hops
+[10:22:29.691] [t=    4.45] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=0.6196s, serve=1.4387s, path=6 hops
+[10:22:29.693] [t=    4.48] [DEBUG] [LatencyCollector] High queuing: flow=189, queue=0.6221s, serve=1.2269s, path=6 hops
+[10:22:29.696] [t=    4.50] [DEBUG] [LatencyCollector] High queuing: flow=200, queue=0.4177s, serve=0.6111s, path=6 hops
+[10:22:29.704] [t=    4.55] [DEBUG] [LatencyCollector] High queuing: flow=63, queue=0.3086s, serve=0.9637s, path=6 hops
+[10:22:29.706] [t=    4.57] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=2.1474s, serve=2.6824s, path=6 hops
+[10:22:29.712] [t=    4.60] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=0.3924s, serve=0.5443s, path=4 hops
+[10:22:29.712] [t=    4.60] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=0.2967s, serve=0.7218s, path=6 hops
+[10:22:29.714] [t=    4.62] [DEBUG] [LatencyCollector] High queuing: flow=24, queue=0.1527s, serve=0.9839s, path=6 hops
+[10:22:29.714] [t=    4.62] [DEBUG] [LatencyCollector] High queuing: flow=87, queue=0.1651s, serve=0.5848s, path=6 hops
+[10:22:29.716] [t=    4.66] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=1.3723s, serve=1.6086s, path=6 hops
+[10:22:29.716] [t=    4.66] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=0.7127s, serve=1.0029s, path=6 hops
+[10:22:29.724] [t=    4.69] [DEBUG] [SDNDatacenter  ] Pkt #800: flow=84, serve=0.3195s, prop=0.0000s, tx=0.3136s, queue=0.0059s, path=6
+[10:22:29.725] [t=    4.70] [DEBUG] [LatencyCollector] High queuing: flow=189, queue=1.2222s, serve=1.3805s, path=6 hops
+[10:22:29.732] [t=    4.72] [DEBUG] [LatencyCollector] High queuing: flow=2, queue=0.3027s, serve=0.4325s, path=4 hops
+[10:22:29.732] [t=    4.72] [DEBUG] [LatencyCollector] High queuing: flow=102, queue=0.3945s, serve=0.9612s, path=6 hops
+[10:22:29.733] [t=    4.74] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.8670s, serve=2.2142s, path=6 hops
+[10:22:29.733] [t=    4.74] [DEBUG] [LatencyCollector] High queuing: flow=138, queue=0.7438s, serve=1.1456s, path=6 hops
+[10:22:29.734] [t=    4.75] [DEBUG] [LatencyCollector] High queuing: flow=226, queue=0.4303s, serve=0.4919s, path=6 hops
+[10:22:29.735] [t=    4.75] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.5408s, serve=2.1517s, path=6 hops
+[10:22:29.735] [t=    4.76] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=1.0541s, serve=1.7007s, path=6 hops
+[10:22:29.736] [t=    4.77] [DEBUG] [LatencyCollector] High queuing: flow=116, queue=0.3351s, serve=1.2080s, path=6 hops
+[10:22:29.736] [t=    4.77] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=0.6948s, serve=1.3027s, path=6 hops
+[10:22:29.736] [t=    4.77] [DEBUG] [LatencyCollector] High queuing: flow=168, queue=0.3118s, serve=0.5213s, path=6 hops
+[10:22:29.736] [t=    4.77] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=0.5547s, serve=0.7230s, path=6 hops
+[10:22:29.737] [t=    4.77] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=0.4329s, serve=1.0095s, path=6 hops
+[10:22:29.738] [t=    4.79] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.6845s, serve=1.5135s, path=6 hops
+[10:22:29.741] [t=    4.81] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=0.5759s, serve=0.9975s, path=6 hops
+[10:22:29.745] [t=    4.83] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=0.9534s, serve=1.1261s, path=6 hops
+[10:22:29.752] [t=    4.90] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.6778s, serve=0.7820s, path=6 hops
+[10:22:29.755] [t=    4.91] [DEBUG] [LatencyCollector] High queuing: flow=138, queue=0.1871s, serve=0.3474s, path=6 hops
+[10:22:29.758] [t=    4.95] [DEBUG] [LatencyCollector] High queuing: flow=123, queue=0.1102s, serve=0.7517s, path=6 hops
+[10:22:29.758] [t=    4.95] [DEBUG] [LatencyCollector] High queuing: flow=57, queue=0.1191s, serve=1.0976s, path=6 hops
+[10:22:29.759] [t=    4.97] [DEBUG] [LatencyCollector] High queuing: flow=112, queue=0.8817s, serve=1.1056s, path=6 hops
+[10:22:29.762] [t=    5.00] [DEBUG] [LatencyCollector] High queuing: flow=237, queue=0.1455s, serve=0.3201s, path=4 hops
+[10:22:29.762] [t=    5.00] [DEBUG] [LatencyCollector] High queuing: flow=63, queue=0.5018s, serve=0.9023s, path=6 hops
+[10:22:29.763] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_0_1->Switch: a_0_0
+[10:22:29.765] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_0_0->Switch: e_0_1
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_1_1_1->Switch: e_1_1
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_1_1->h_1_1_1
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_1_1->Switch: c_1_0
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_1_0->Switch: a_1_1
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_3_1->Switch: a_3_0
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_3_0->Switch: e_3_1
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_1_0->Switch: c_0_1
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_0_1->Switch: a_1_0
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_1_1->Switch: c_1_1
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_1_1->Switch: a_1_1
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_3_0_0->Switch: e_3_0
+[10:22:29.766] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_3_0->h_3_0_0
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_0_0->Switch: a_0_1
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_0_1->Switch: e_0_0
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_3_0->Switch: c_0_1
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_0_1->Switch: a_3_0
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_3_1->Switch: c_1_1
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_1_1->Switch: a_3_1
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_0_0_0->Switch: e_0_0
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_0_0->h_0_0_0
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_3_1_0->Switch: e_3_1
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_3_1->h_3_1_0
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_1_0->Switch: c_0_0
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_0_0->Switch: a_1_0
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_0_1_0->Switch: e_0_1
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_0_1->h_0_1_0
+[10:22:29.767] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_3_1->Switch: a_3_1
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_3_1->Switch: e_3_1
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_3_0->Switch: a_3_1
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_3_1->Switch: e_3_0
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_2_1_0->Switch: e_2_1
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_2_1->h_2_1_0
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_0_1->Switch: c_1_0
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_1_0->Switch: a_0_1
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_1_1->Switch: a_1_0
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_1_0->Switch: e_1_1
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_2_1->Switch: c_1_0
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_1_0->Switch: a_2_1
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_0_0->Switch: a_0_0
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_0_0->Switch: e_0_0
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_2_0->Switch: c_0_1
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_0_1->Switch: a_2_0
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_1_1_0->Switch: e_1_1
+[10:22:29.768] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_1_1->h_1_1_0
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_1_1->Switch: a_1_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_1_1->Switch: e_1_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_1_0->Switch: a_1_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_1_1->Switch: e_1_0
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_2_1->Switch: a_2_0
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_2_0->Switch: e_2_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_2_1_1->Switch: e_2_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_2_1->h_2_1_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_0_0_1->Switch: e_0_0
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_0_0->h_0_0_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_3_1->Switch: c_1_0
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_1_0->Switch: a_3_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_0_1->Switch: c_1_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_1_1->Switch: a_0_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_0_1->Switch: a_0_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_0_1->Switch: e_0_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_3_1_1->Switch: e_3_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_3_1->h_3_1_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_3_0->Switch: a_3_0
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_3_0->Switch: e_3_0
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_0_0->Switch: c_0_1
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_0_1->Switch: a_0_0
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_1_0_0->Switch: e_1_0
+[10:22:29.769] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_1_0->h_1_0_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_2_1->Switch: a_2_1
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_2_1->Switch: e_2_1
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_0_0->Switch: c_0_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_0_0->Switch: a_0_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_2_0_0->Switch: e_2_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_2_0->h_2_0_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_2_0->Switch: c_0_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_0_0->Switch: a_2_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_2_1->Switch: c_1_1
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_1_1->Switch: a_2_1
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_0_1_1->Switch: e_0_1
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_0_1->h_0_1_1
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_2_0->Switch: a_2_1
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_2_1->Switch: e_2_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_2_0_1->Switch: e_2_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_2_0->h_2_0_1
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_2_0->Switch: a_2_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_2_0->Switch: e_2_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_1_0->Switch: a_1_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_1_0->Switch: e_1_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: a_3_0->Switch: c_0_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: c_0_0->Switch: a_3_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_1_0_1->Switch: e_1_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_1_0->h_1_0_1
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: h_3_0_1->Switch: e_3_0
+[10:22:29.770] [t=    5.00] [WARN ] [LinkStatsCollector] Auto-registering unknown link: Switch: e_3_0->h_3_0_1
+[10:22:29.780] [t=    5.00] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=2.0577s, serve=2.3281s, path=6 hops
+[10:22:29.780] [t=    5.00] [DEBUG] [LatencyCollector] High queuing: flow=194, queue=0.1237s, serve=1.0839s, path=4 hops
+[10:22:29.782] [t=    5.01] [DEBUG] [LatencyCollector] High queuing: flow=220, queue=0.1250s, serve=0.3165s, path=6 hops
+[10:22:29.786] [t=    5.04] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.1928s, serve=0.5884s, path=6 hops
+[10:22:29.787] [t=    5.06] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=1.2519s, serve=1.5514s, path=6 hops
+[10:22:29.787] [t=    5.06] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=1.2047s, serve=1.4836s, path=6 hops
+[10:22:29.787] [t=    5.06] [DEBUG] [LatencyCollector] High queuing: flow=147, queue=0.9431s, serve=1.5071s, path=6 hops
+[10:22:29.788] [t=    5.06] [DEBUG] [LatencyCollector] High queuing: flow=123, queue=0.3124s, serve=0.4125s, path=6 hops
+[10:22:29.795] [t=    5.09] [DEBUG] [LatencyCollector] High queuing: flow=129, queue=0.5090s, serve=0.6566s, path=4 hops
+[10:22:29.795] [t=    5.09] [DEBUG] [LatencyCollector] High queuing: flow=9, queue=0.4702s, serve=0.9355s, path=6 hops
+[10:22:29.795] [t=    5.10] [DEBUG] [LatencyCollector] High queuing: flow=112, queue=1.0859s, serve=1.2092s, path=6 hops
+[10:22:29.795] [t=    5.10] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=0.5124s, serve=1.1088s, path=2 hops
+[10:22:29.795] [t=    5.10] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.7640s, serve=0.9766s, path=6 hops
+[10:22:29.798] [t=    5.12] [DEBUG] [LatencyCollector] High queuing: flow=105, queue=0.1630s, serve=0.6743s, path=6 hops
+[10:22:29.800] [t=    5.13] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=0.8428s, serve=1.4762s, path=6 hops
+[10:22:29.800] [t=    5.13] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=0.4915s, serve=0.6787s, path=6 hops
+[10:22:29.803] [t=    5.16] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=0.6560s, serve=0.9991s, path=6 hops
+[10:22:29.804] [t=    5.17] [DEBUG] [LatencyCollector] High queuing: flow=2, queue=0.3864s, serve=0.7625s, path=4 hops
+[10:22:29.804] [t=    5.19] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=0.6631s, serve=1.1285s, path=6 hops
+[10:22:29.807] [t=    5.20] [DEBUG] [SDNDatacenter  ] Pkt #900: flow=106, serve=0.3282s, prop=0.0000s, tx=0.2990s, queue=0.0292s, path=6
+[10:22:29.813] [t=    5.22] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.5108s, serve=0.6896s, path=6 hops
+[10:22:29.814] [t=    5.22] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=0.5480s, serve=0.7051s, path=6 hops
+[10:22:29.814] [t=    5.22] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=0.1198s, serve=0.2407s, path=6 hops
+[10:22:29.815] [t=    5.23] [DEBUG] [LatencyCollector] High queuing: flow=112, queue=0.9872s, serve=1.1145s, path=6 hops
+[10:22:29.817] [t=    5.24] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=0.3588s, serve=0.9952s, path=4 hops
+[10:22:29.817] [t=    5.25] [DEBUG] [LatencyCollector] High queuing: flow=108, queue=0.1208s, serve=0.8601s, path=6 hops
+[10:22:29.818] [t=    5.27] [DEBUG] [LatencyCollector] High queuing: flow=220, queue=0.1552s, serve=0.4337s, path=6 hops
+[10:22:29.819] [t=    5.28] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.8182s, serve=0.9849s, path=6 hops
+[10:22:29.821] [t=    5.30] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=0.2680s, serve=1.0562s, path=6 hops
+[10:22:29.825] [t=    5.32] [DEBUG] [LatencyCollector] High queuing: flow=199, queue=0.1120s, serve=0.8698s, path=6 hops
+[10:22:29.828] [t=    5.34] [DEBUG] [LatencyCollector] High queuing: flow=129, queue=0.5540s, serve=0.8162s, path=4 hops
+[10:22:29.828] [t=    5.34] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=0.4861s, serve=0.6013s, path=6 hops
+[10:22:29.830] [t=    5.38] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.6859s, serve=2.0865s, path=6 hops
+[10:22:29.832] [t=    5.41] [DEBUG] [LatencyCollector] High queuing: flow=226, queue=0.4296s, serve=1.1435s, path=6 hops
+[10:22:29.832] [t=    5.41] [DEBUG] [LatencyCollector] High queuing: flow=202, queue=0.8809s, serve=1.0962s, path=6 hops
+[10:22:29.835] [t=    5.42] [DEBUG] [LatencyCollector] High queuing: flow=54, queue=0.5960s, serve=0.7173s, path=6 hops
+[10:22:29.835] [t=    5.42] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=1.1917s, serve=2.1695s, path=6 hops
+[10:22:29.835] [t=    5.42] [DEBUG] [LatencyCollector] High queuing: flow=112, queue=0.8102s, serve=1.0006s, path=6 hops
+[10:22:29.835] [t=    5.44] [DEBUG] [LatencyCollector] High queuing: flow=223, queue=0.1113s, serve=0.3540s, path=4 hops
+[10:22:29.837] [t=    5.45] [DEBUG] [LatencyCollector] High queuing: flow=115, queue=0.1727s, serve=0.7472s, path=6 hops
+[10:22:29.839] [t=    5.46] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=0.2741s, serve=0.4266s, path=6 hops
+[10:22:29.842] [t=    5.49] [DEBUG] [LatencyCollector] High queuing: flow=110, queue=0.1596s, serve=1.0432s, path=4 hops
+[10:22:29.843] [t=    5.49] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=1.2640s, serve=1.6712s, path=6 hops
+[10:22:29.843] [t=    5.49] [DEBUG] [LatencyCollector] High queuing: flow=147, queue=1.4128s, serve=1.8170s, path=6 hops
+[10:22:29.844] [t=    5.51] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.8865s, serve=2.5894s, path=6 hops
+[10:22:29.846] [t=    5.53] [DEBUG] [LatencyCollector] High queuing: flow=129, queue=0.7540s, serve=0.9442s, path=4 hops
+[10:22:29.846] [t=    5.53] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.6310s, serve=0.8849s, path=6 hops
+[10:22:29.847] [t=    5.53] [DEBUG] [LatencyCollector] High queuing: flow=168, queue=0.1021s, serve=0.8640s, path=6 hops
+[10:22:29.849] [t=    5.55] [DEBUG] [LatencyCollector] High queuing: flow=2, queue=0.5307s, serve=0.8802s, path=4 hops
+[10:22:29.852] [t=    5.57] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=0.3998s, serve=0.4989s, path=6 hops
+[10:22:29.853] [t=    5.58] [DEBUG] [LatencyCollector] High queuing: flow=173, queue=0.1874s, serve=1.0493s, path=4 hops
+[10:22:29.853] [t=    5.58] [DEBUG] [LatencyCollector] High queuing: flow=102, queue=0.5086s, serve=1.3835s, path=6 hops
+[10:22:29.853] [t=    5.60] [DEBUG] [LatencyCollector] High queuing: flow=200, queue=0.4637s, serve=0.5952s, path=6 hops
+[10:22:29.856] [t=    5.63] [DEBUG] [LatencyCollector] High queuing: flow=144, queue=0.2175s, serve=0.4206s, path=4 hops
+[10:22:29.857] [t=    5.63] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=1.3611s, serve=2.3234s, path=6 hops
+[10:22:29.857] [t=    5.64] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=1.1848s, serve=1.6312s, path=6 hops
+[10:22:29.858] [t=    5.66] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=0.9292s, serve=1.4128s, path=2 hops
+[10:22:29.859] [t=    5.66] [DEBUG] [LatencyCollector] High queuing: flow=233, queue=0.1538s, serve=0.3152s, path=6 hops
+[10:22:29.860] [t=    5.67] [DEBUG] [LatencyCollector] High queuing: flow=63, queue=0.6542s, serve=1.3022s, path=6 hops
+[10:22:29.861] [t=    5.68] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=1.0859s, serve=1.2813s, path=6 hops
+[10:22:29.861] [t=    5.68] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=0.4461s, serve=0.5547s, path=6 hops
+[10:22:29.863] [t=    5.71] [DEBUG] [LatencyCollector] High queuing: flow=227, queue=0.3556s, serve=0.9152s, path=6 hops
+[10:22:29.863] [t=    5.71] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.7195s, serve=0.8847s, path=6 hops
+[10:22:29.864] [t=    5.73] [DEBUG] [LatencyCollector] High queuing: flow=116, queue=0.5286s, serve=1.5906s, path=6 hops
+[10:22:29.864] [t=    5.73] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=0.4945s, serve=0.9009s, path=6 hops
+[10:22:29.864] [t=    5.73] [DEBUG] [LatencyCollector] High queuing: flow=67, queue=0.3721s, serve=1.1287s, path=6 hops
+[10:22:29.864] [t=    5.73] [DEBUG] [SDNDatacenter  ] Pkt #1000: flow=67, serve=1.1287s, prop=0.0000s, tx=0.7565s, queue=0.3721s, path=6
+[10:22:29.865] [t=    5.75] [DEBUG] [LatencyCollector] High queuing: flow=129, queue=0.6187s, serve=0.8511s, path=4 hops
+[10:22:29.865] [t=    5.75] [DEBUG] [LatencyCollector] High queuing: flow=226, queue=1.0848s, serve=1.3922s, path=6 hops
+[10:22:29.867] [t=    5.76] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=1.2850s, serve=1.4094s, path=6 hops
+[10:22:29.871] [t=    5.80] [DEBUG] [LatencyCollector] High queuing: flow=54, queue=0.6077s, serve=1.0042s, path=6 hops
+[10:22:29.871] [t=    5.80] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=0.8889s, serve=1.9300s, path=6 hops
+[10:22:29.875] [t=    5.81] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=0.8000s, serve=1.4983s, path=6 hops
+[10:22:30.033] [t=    5.86] [DEBUG] [LatencyCollector] High queuing: flow=110, queue=0.6261s, serve=1.0872s, path=4 hops
+[10:22:30.035] [t=    5.88] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=0.9209s, serve=1.5214s, path=6 hops
+[10:22:30.035] [t=    5.88] [DEBUG] [LatencyCollector] High queuing: flow=97, queue=0.2870s, serve=1.2117s, path=6 hops
+[10:22:30.035] [t=    5.88] [DEBUG] [LatencyCollector] High queuing: flow=147, queue=1.1926s, serve=1.5899s, path=6 hops
+[10:22:30.036] [t=    5.89] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.1653s, serve=1.5627s, path=6 hops
+[10:22:30.037] [t=    5.90] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=1.5170s, serve=1.9971s, path=6 hops
+[10:22:30.037] [t=    5.90] [DEBUG] [LatencyCollector] High queuing: flow=93, queue=0.1010s, serve=0.6536s, path=6 hops
+[10:22:30.037] [t=    5.90] [DEBUG] [LatencyCollector] High queuing: flow=87, queue=0.2741s, serve=0.7275s, path=6 hops
+[10:22:30.041] [t=    5.93] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=1.4242s, serve=1.5450s, path=6 hops
+[10:22:30.043] [t=    5.95] [DEBUG] [LatencyCollector] High queuing: flow=189, queue=0.1343s, serve=0.4466s, path=6 hops
+[10:22:30.047] [t=    5.96] [DEBUG] [LatencyCollector] High queuing: flow=209, queue=0.1751s, serve=0.4198s, path=4 hops
+[10:22:30.049] [t=    5.97] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=0.4698s, serve=0.6710s, path=6 hops
+[10:22:30.051] [t=    5.99] [DEBUG] [LatencyCollector] High queuing: flow=63, queue=0.4879s, serve=0.8040s, path=6 hops
+[10:22:30.051] [t=    6.01] [DEBUG] [LatencyCollector] High queuing: flow=194, queue=0.6506s, serve=1.6051s, path=4 hops
+[10:22:30.053] [t=    6.03] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.9502s, serve=2.6598s, path=6 hops
+[10:22:30.053] [t=    6.03] [DEBUG] [LatencyCollector] High queuing: flow=25, queue=0.2123s, serve=0.8939s, path=6 hops
+[10:22:30.058] [t=    6.04] [DEBUG] [LatencyCollector] High queuing: flow=207, queue=0.5448s, serve=0.6708s, path=2 hops
+[10:22:30.060] [t=    6.04] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=0.4271s, serve=0.7889s, path=6 hops
+[10:22:30.061] [t=    6.05] [DEBUG] [LatencyCollector] High queuing: flow=87, queue=0.6906s, serve=0.8390s, path=6 hops
+[10:22:30.061] [t=    6.05] [DEBUG] [LatencyCollector] High queuing: flow=203, queue=0.3999s, serve=1.2945s, path=6 hops
+[10:22:30.062] [t=    6.05] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.4465s, serve=1.6089s, path=6 hops
+[10:22:30.063] [t=    6.06] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=0.7766s, serve=0.9078s, path=6 hops
+[10:22:30.064] [t=    6.06] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=0.9325s, serve=1.2293s, path=6 hops
+[10:22:30.065] [t=    6.07] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=1.3686s, serve=1.6155s, path=6 hops
+[10:22:30.067] [t=    6.09] [DEBUG] [LatencyCollector] High queuing: flow=93, queue=0.5484s, serve=0.7354s, path=6 hops
+[10:22:30.067] [t=    6.09] [DEBUG] [LatencyCollector] High queuing: flow=9, queue=0.6465s, serve=1.7587s, path=6 hops
+[10:22:30.068] [t=    6.10] [DEBUG] [LatencyCollector] High queuing: flow=116, queue=1.4892s, serve=1.8605s, path=6 hops
+[10:22:30.068] [t=    6.10] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=2.2533s, serve=2.7605s, path=6 hops
+[10:22:30.070] [t=    6.14] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=0.3630s, serve=1.1872s, path=6 hops
+[10:22:30.070] [t=    6.14] [DEBUG] [LatencyCollector] High queuing: flow=226, queue=0.3210s, serve=0.6564s, path=6 hops
+[10:22:30.070] [t=    6.14] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.4779s, serve=1.5822s, path=6 hops
+[10:22:30.071] [t=    6.15] [DEBUG] [LatencyCollector] High queuing: flow=194, queue=0.8410s, serve=0.9698s, path=4 hops
+[10:22:30.071] [t=    6.15] [DEBUG] [LatencyCollector] High queuing: flow=118, queue=0.1525s, serve=0.3358s, path=6 hops
+[10:22:30.075] [t=    6.16] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.7115s, serve=1.3644s, path=6 hops
+[10:22:30.077] [t=    6.16] [DEBUG] [LatencyCollector] High queuing: flow=129, queue=0.8276s, serve=1.2581s, path=4 hops
+[10:22:30.078] [t=    6.16] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.5987s, serve=1.0665s, path=6 hops
+[10:22:30.086] [t=    6.19] [DEBUG] [LatencyCollector] High queuing: flow=63, queue=0.2098s, serve=0.4088s, path=6 hops
+[10:22:30.090] [t=    6.21] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=1.6286s, serve=1.9348s, path=6 hops
+[10:22:30.095] [t=    6.22] [DEBUG] [LatencyCollector] High queuing: flow=93, queue=0.5499s, serve=0.6808s, path=6 hops
+[10:22:30.096] [t=    6.24] [DEBUG] [LatencyCollector] High queuing: flow=2, queue=0.3222s, serve=0.6282s, path=4 hops
+[10:22:30.097] [t=    6.25] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=0.5019s, serve=1.0568s, path=2 hops
+[10:22:30.097] [t=    6.25] [DEBUG] [LatencyCollector] High queuing: flow=147, queue=0.4000s, serve=0.7420s, path=6 hops
+[10:22:30.097] [t=    6.25] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.3471s, serve=1.5413s, path=6 hops
+[10:22:30.100] [t=    6.28] [DEBUG] [LatencyCollector] High queuing: flow=199, queue=0.6077s, serve=1.6223s, path=6 hops
+[10:22:30.101] [t=    6.29] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=2.3314s, serve=2.5085s, path=6 hops
+[10:22:30.102] [t=    6.31] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=1.0293s, serve=2.1156s, path=6 hops
+[10:22:30.105] [t=    6.31] [DEBUG] [SDNDatacenter  ] Pkt #1100: flow=16, serve=0.1194s, prop=0.0000s, tx=0.1193s, queue=0.0001s, path=4
+[10:22:30.107] [t=    6.33] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=0.4858s, serve=1.1030s, path=6 hops
+[10:22:30.108] [t=    6.34] [DEBUG] [LatencyCollector] High queuing: flow=158, queue=0.2455s, serve=0.6447s, path=4 hops
+[10:22:30.110] [t=    6.35] [DEBUG] [LatencyCollector] High queuing: flow=147, queue=0.6948s, serve=0.7997s, path=6 hops
+[10:22:30.110] [t=    6.36] [DEBUG] [LatencyCollector] High queuing: flow=129, queue=0.9641s, serve=1.1724s, path=4 hops
+[10:22:30.111] [t=    6.37] [DEBUG] [LatencyCollector] High queuing: flow=109, queue=0.1522s, serve=0.8604s, path=4 hops
+[10:22:30.112] [t=    6.38] [DEBUG] [LatencyCollector] High queuing: flow=93, queue=0.2633s, serve=0.4424s, path=6 hops
+[10:22:30.112] [t=    6.38] [DEBUG] [LatencyCollector] High queuing: flow=63, queue=0.1397s, serve=0.3493s, path=6 hops
+[10:22:30.113] [t=    6.39] [DEBUG] [LatencyCollector] High queuing: flow=230, queue=0.3115s, serve=0.6241s, path=6 hops
+[10:22:30.113] [t=    6.39] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=0.4479s, serve=0.7843s, path=6 hops
+[10:22:30.114] [t=    6.41] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=0.6561s, serve=1.2451s, path=6 hops
+[10:22:30.114] [t=    6.41] [DEBUG] [LatencyCollector] High queuing: flow=118, queue=0.1561s, serve=0.3825s, path=6 hops
+[10:22:30.114] [t=    6.41] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=0.7575s, serve=1.0298s, path=6 hops
+[10:22:30.114] [t=    6.41] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=0.5196s, serve=1.6659s, path=6 hops
+[10:22:30.115] [t=    6.41] [DEBUG] [LatencyCollector] High queuing: flow=200, queue=0.3983s, serve=1.2923s, path=6 hops
+[10:22:30.116] [t=    6.43] [DEBUG] [LatencyCollector] High queuing: flow=207, queue=0.2382s, serve=0.6661s, path=2 hops
+[10:22:30.120] [t=    6.45] [DEBUG] [LatencyCollector] High queuing: flow=112, queue=0.3128s, serve=0.9928s, path=6 hops
+[10:22:30.121] [t=    6.46] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=0.3304s, serve=0.8565s, path=6 hops
+[10:22:30.123] [t=    6.47] [DEBUG] [LatencyCollector] High queuing: flow=183, queue=0.2472s, serve=1.2138s, path=6 hops
+[10:22:30.123] [t=    6.47] [DEBUG] [LatencyCollector] High queuing: flow=203, queue=1.2262s, serve=1.6898s, path=6 hops
+[10:22:30.125] [t=    6.48] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=1.7713s, serve=1.9503s, path=6 hops
+[10:22:30.125] [t=    6.52] [DEBUG] [LatencyCollector] High queuing: flow=116, queue=1.5070s, serve=1.8499s, path=6 hops
+[10:22:30.125] [t=    6.52] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.0272s, serve=1.1375s, path=6 hops
+[10:22:30.125] [t=    6.54] [DEBUG] [LatencyCollector] High queuing: flow=230, queue=0.3125s, serve=0.4888s, path=6 hops
+[10:22:30.125] [t=    6.54] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=0.4733s, serve=1.0667s, path=6 hops
+[10:22:30.125] [t=    6.56] [DEBUG] [LatencyCollector] High queuing: flow=118, queue=0.3616s, serve=0.4829s, path=6 hops
+[10:22:30.125] [t=    6.56] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=0.8498s, serve=1.6894s, path=6 hops
+[10:22:30.125] [t=    6.56] [DEBUG] [LatencyCollector] High queuing: flow=147, queue=0.1323s, serve=0.3421s, path=6 hops
+[10:22:30.125] [t=    6.58] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=0.9051s, serve=1.2213s, path=2 hops
+[10:22:30.125] [t=    6.58] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=0.7916s, serve=0.9534s, path=6 hops
+[10:22:30.125] [t=    6.58] [DEBUG] [LatencyCollector] High queuing: flow=54, queue=0.4945s, serve=1.2806s, path=6 hops
+[10:22:30.125] [t=    6.58] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.5131s, serve=0.9855s, path=6 hops
+[10:22:30.135] [t=    6.60] [DEBUG] [LatencyCollector] High queuing: flow=199, queue=0.3232s, serve=0.6591s, path=6 hops
+[10:22:30.138] [t=    6.62] [DEBUG] [LatencyCollector] High queuing: flow=213, queue=0.2729s, serve=0.5558s, path=6 hops
+[10:22:30.138] [t=    6.63] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=2.2665s, serve=2.6049s, path=6 hops
+[10:22:30.140] [t=    6.63] [DEBUG] [LatencyCollector] High queuing: flow=129, queue=1.1179s, serve=1.3887s, path=4 hops
+[10:22:30.141] [t=    6.64] [DEBUG] [LatencyCollector] High queuing: flow=207, queue=0.6370s, serve=0.8377s, path=2 hops
+[10:22:30.141] [t=    6.64] [DEBUG] [LatencyCollector] High queuing: flow=209, queue=0.5534s, serve=0.6974s, path=4 hops
+[10:22:30.142] [t=    6.66] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.2270s, serve=1.0001s, path=6 hops
+[10:22:30.143] [t=    6.67] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=0.6601s, serve=0.8850s, path=2 hops
+[10:22:30.147] [t=    6.71] [DEBUG] [LatencyCollector] High queuing: flow=144, queue=0.1423s, serve=1.3558s, path=4 hops
+[10:22:30.148] [t=    6.71] [DEBUG] [LatencyCollector] High queuing: flow=183, queue=0.9700s, serve=1.2033s, path=6 hops
+[10:22:30.150] [t=    6.73] [DEBUG] [LatencyCollector] High queuing: flow=200, queue=0.5355s, serve=0.8265s, path=6 hops
+[10:22:30.151] [t=    6.75] [DEBUG] [LatencyCollector] High queuing: flow=54, queue=0.8330s, serve=0.9930s, path=6 hops
+[10:22:30.151] [t=    6.75] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.6334s, serve=0.7861s, path=6 hops
+[10:22:30.151] [t=    6.75] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.3134s, serve=1.7961s, path=6 hops
+[10:22:30.151] [t=    6.75] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=0.2723s, serve=0.5323s, path=6 hops
+[10:22:30.152] [t=    6.76] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=1.4410s, serve=2.0997s, path=6 hops
+[10:22:30.154] [t=    6.77] [DEBUG] [LatencyCollector] High queuing: flow=236, queue=0.5349s, serve=1.2976s, path=6 hops
+[10:22:30.156] [t=    6.80] [DEBUG] [LatencyCollector] High queuing: flow=116, queue=1.4446s, serve=1.7393s, path=6 hops
+[10:22:30.156] [t=    6.80] [DEBUG] [SDNDatacenter  ] Pkt #1200: flow=199, serve=0.2144s, prop=0.0000s, tx=0.1787s, queue=0.0357s, path=6
+[10:22:30.157] [t=    6.81] [DEBUG] [LatencyCollector] High queuing: flow=209, queue=0.2802s, serve=0.4337s, path=4 hops
+[10:22:30.158] [t=    6.82] [DEBUG] [LatencyCollector] High queuing: flow=207, queue=0.7793s, serve=0.9258s, path=2 hops
+[10:22:30.158] [t=    6.84] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.0275s, serve=1.3887s, path=6 hops
+[10:22:30.158] [t=    6.86] [DEBUG] [LatencyCollector] High queuing: flow=129, queue=0.8010s, serve=1.0303s, path=4 hops
+[10:22:30.165] [t=    6.89] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=0.5058s, serve=0.8148s, path=2 hops
+[10:22:30.165] [t=    6.89] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=0.6174s, serve=1.3074s, path=6 hops
+[10:22:30.165] [t=    6.91] [DEBUG] [LatencyCollector] High queuing: flow=112, queue=0.7225s, serve=1.1620s, path=6 hops
+[10:22:30.165] [t=    6.91] [DEBUG] [LatencyCollector] High queuing: flow=183, queue=1.1995s, serve=1.3974s, path=6 hops
+[10:22:30.165] [t=    6.91] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=1.5622s, serve=1.9134s, path=6 hops
+[10:22:30.165] [t=    6.91] [DEBUG] [LatencyCollector] High queuing: flow=147, queue=0.1983s, serve=0.5842s, path=6 hops
+[10:22:30.168] [t=    6.93] [DEBUG] [LatencyCollector] High queuing: flow=213, queue=0.2081s, serve=0.4929s, path=6 hops
+[10:22:30.168] [t=    6.93] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.8005s, serve=1.0657s, path=6 hops
+[10:22:30.170] [t=    6.95] [DEBUG] [LatencyCollector] High queuing: flow=182, queue=0.7236s, serve=0.8582s, path=6 hops
+[10:22:30.175] [t=    6.97] [DEBUG] [LatencyCollector] High queuing: flow=238, queue=0.7312s, serve=1.2159s, path=4 hops
+[10:22:30.178] [t=    6.98] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=0.7721s, serve=1.0950s, path=2 hops
+[10:22:30.187] [t=    7.00] [DEBUG] [LatencyCollector] High queuing: flow=116, queue=1.6063s, serve=1.8397s, path=6 hops
+[10:22:30.187] [t=    7.00] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.5462s, serve=0.8010s, path=6 hops
+[10:22:30.189] [t=    7.02] [DEBUG] [LatencyCollector] High queuing: flow=200, queue=0.2462s, serve=0.5604s, path=6 hops
+[10:22:30.190] [t=    7.03] [DEBUG] [LatencyCollector] High queuing: flow=144, queue=0.2224s, serve=0.5627s, path=4 hops
+[10:22:30.190] [t=    7.03] [DEBUG] [LatencyCollector] High queuing: flow=112, queue=0.4808s, serve=0.6082s, path=6 hops
+[10:22:30.191] [t=    7.04] [DEBUG] [LatencyCollector] High queuing: flow=213, queue=0.2707s, serve=0.3743s, path=6 hops
+[10:22:30.192] [t=    7.04] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.3156s, serve=1.6571s, path=6 hops
+[10:22:30.193] [t=    7.05] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.2845s, serve=1.4497s, path=6 hops
+[10:22:30.196] [t=    7.08] [DEBUG] [LatencyCollector] High queuing: flow=111, queue=0.1122s, serve=0.4767s, path=2 hops
+[10:22:30.196] [t=    7.09] [DEBUG] [LatencyCollector] High queuing: flow=39, queue=0.5259s, serve=0.9109s, path=6 hops
+[10:22:30.197] [t=    7.09] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=0.8073s, serve=1.2750s, path=6 hops
+[10:22:30.197] [t=    7.09] [DEBUG] [LatencyCollector] High queuing: flow=113, queue=0.2477s, serve=0.4947s, path=6 hops
+[10:22:30.201] [t=    7.12] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=1.0555s, serve=1.9808s, path=6 hops
+[10:22:30.203] [t=    7.13] [DEBUG] [LatencyCollector] High queuing: flow=69, queue=0.1983s, serve=1.0865s, path=6 hops
+[10:22:30.203] [t=    7.13] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=1.4590s, serve=2.2408s, path=6 hops
+[10:22:30.203] [t=    7.13] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=1.0671s, serve=2.0304s, path=6 hops
+[10:22:30.205] [t=    7.15] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=1.7750s, serve=2.1704s, path=6 hops
+[10:22:30.205] [t=    7.15] [DEBUG] [LatencyCollector] High queuing: flow=93, queue=0.4492s, serve=1.1599s, path=6 hops
+[10:22:30.206] [t=    7.16] [DEBUG] [LatencyCollector] High queuing: flow=200, queue=0.3275s, serve=0.4793s, path=6 hops
+[10:22:30.207] [t=    7.17] [DEBUG] [LatencyCollector] High queuing: flow=238, queue=0.7388s, serve=0.9396s, path=4 hops
+[10:22:30.211] [t=    7.19] [DEBUG] [LatencyCollector] High queuing: flow=9, queue=0.9297s, serve=2.0754s, path=6 hops
+[10:22:30.213] [t=    7.20] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=0.8127s, serve=1.1072s, path=2 hops
+[10:22:30.213] [t=    7.20] [DEBUG] [LatencyCollector] High queuing: flow=147, queue=0.5636s, serve=0.8508s, path=6 hops
+[10:22:30.214] [t=    7.20] [DEBUG] [LatencyCollector] High queuing: flow=207, queue=0.5987s, serve=1.0651s, path=2 hops
+[10:22:30.214] [t=    7.20] [DEBUG] [LatencyCollector] High queuing: flow=144, queue=0.3544s, serve=0.5159s, path=4 hops
+[10:22:30.216] [t=    7.21] [DEBUG] [LatencyCollector] High queuing: flow=232, queue=0.1734s, serve=0.5412s, path=6 hops
+[10:22:30.218] [t=    7.22] [DEBUG] [LatencyCollector] High queuing: flow=239, queue=0.1252s, serve=0.7808s, path=2 hops
+[10:22:30.218] [t=    7.22] [DEBUG] [LatencyCollector] High queuing: flow=173, queue=0.1111s, serve=0.2668s, path=4 hops
+[10:22:30.218] [t=    7.22] [DEBUG] [LatencyCollector] High queuing: flow=109, queue=0.2052s, serve=1.1013s, path=4 hops
+[10:22:30.218] [t=    7.22] [DEBUG] [LatencyCollector] High queuing: flow=183, queue=0.9794s, serve=1.3334s, path=6 hops
+[10:22:30.225] [t=    7.25] [DEBUG] [LatencyCollector] High queuing: flow=230, queue=0.4257s, serve=1.1692s, path=6 hops
+[10:22:30.226] [t=    7.26] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=0.5261s, serve=0.7961s, path=2 hops
+[10:22:30.226] [t=    7.26] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=2.5787s, serve=3.1943s, path=6 hops
+[10:22:30.229] [t=    7.26] [DEBUG] [LatencyCollector] High queuing: flow=129, queue=0.2138s, serve=0.6032s, path=4 hops
+[10:22:30.230] [t=    7.27] [DEBUG] [LatencyCollector] High queuing: flow=111, queue=0.4185s, serve=0.6354s, path=2 hops
+[10:22:30.230] [t=    7.27] [DEBUG] [LatencyCollector] High queuing: flow=116, queue=0.8124s, serve=1.0706s, path=6 hops
+[10:22:30.232] [t=    7.27] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.5131s, serve=0.7832s, path=6 hops
+[10:22:30.235] [t=    7.28] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=1.9416s, serve=2.0726s, path=6 hops
+[10:22:30.235] [t=    7.28] [DEBUG] [LatencyCollector] High queuing: flow=203, queue=1.1920s, serve=2.1592s, path=6 hops
+[10:22:30.236] [t=    7.29] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=1.8599s, serve=2.2961s, path=6 hops
+[10:22:30.237] [t=    7.30] [DEBUG] [LatencyCollector] High queuing: flow=182, queue=0.4872s, serve=0.8787s, path=6 hops
+[10:22:30.240] [t=    7.31] [DEBUG] [LatencyCollector] High queuing: flow=238, queue=0.2416s, serve=0.3751s, path=4 hops
+[10:22:30.240] [t=    7.31] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=0.2440s, serve=1.2775s, path=6 hops
+[10:22:30.240] [t=    7.32] [DEBUG] [SDNDatacenter  ] Pkt #1300: flow=170, serve=0.5994s, prop=0.0000s, tx=0.7294s, queue=0.0000s, path=6
+[10:22:30.244] [t=    7.33] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=1.4265s, serve=1.6389s, path=6 hops
+[10:22:30.244] [t=    7.33] [DEBUG] [LatencyCollector] High queuing: flow=206, queue=0.1234s, serve=0.2883s, path=6 hops
+[10:22:30.244] [t=    7.35] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=1.2614s, serve=1.4833s, path=6 hops
+[10:22:30.244] [t=    7.35] [DEBUG] [LatencyCollector] High queuing: flow=39, queue=0.2991s, serve=0.5448s, path=6 hops
+[10:22:30.248] [t=    7.38] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=0.1502s, serve=1.2796s, path=4 hops
+[10:22:30.248] [t=    7.38] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.3154s, serve=1.6444s, path=6 hops
+[10:22:30.250] [t=    7.41] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=0.8943s, serve=1.9532s, path=6 hops
+[10:22:30.250] [t=    7.41] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.3269s, serve=1.6436s, path=6 hops
+[10:22:30.252] [t=    7.42] [DEBUG] [LatencyCollector] High queuing: flow=116, queue=0.7690s, serve=0.9231s, path=6 hops
+[10:22:30.254] [t=    7.43] [DEBUG] [LatencyCollector] High queuing: flow=183, queue=0.9208s, serve=1.1220s, path=6 hops
+[10:22:30.256] [t=    7.45] [DEBUG] [LatencyCollector] High queuing: flow=111, queue=0.3641s, serve=0.5195s, path=2 hops
+[10:22:30.256] [t=    7.45] [DEBUG] [LatencyCollector] High queuing: flow=109, queue=0.7279s, serve=0.9468s, path=4 hops
+[10:22:30.256] [t=    7.45] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.2091s, serve=0.3693s, path=6 hops
+[10:22:30.258] [t=    7.47] [DEBUG] [LatencyCollector] High queuing: flow=144, queue=0.3931s, serve=0.6653s, path=4 hops
+[10:22:30.258] [t=    7.47] [DEBUG] [LatencyCollector] High queuing: flow=9, queue=1.6040s, serve=1.8883s, path=6 hops
+[10:22:30.260] [t=    7.49] [DEBUG] [LatencyCollector] High queuing: flow=207, queue=1.0176s, serve=1.2874s, path=2 hops
+[10:22:30.260] [t=    7.49] [DEBUG] [LatencyCollector] High queuing: flow=233, queue=0.3359s, serve=1.1398s, path=6 hops
+[10:22:30.260] [t=    7.49] [DEBUG] [LatencyCollector] High queuing: flow=153, queue=0.2867s, serve=0.4701s, path=6 hops
+[10:22:30.260] [t=    7.49] [DEBUG] [LatencyCollector] High queuing: flow=12, queue=0.4090s, serve=0.5748s, path=6 hops
+[10:22:30.261] [t=    7.50] [DEBUG] [LatencyCollector] High queuing: flow=182, queue=0.7981s, serve=0.9905s, path=6 hops
+[10:22:30.262] [t=    7.51] [DEBUG] [LatencyCollector] High queuing: flow=82, queue=0.7063s, serve=1.2925s, path=6 hops
+[10:22:30.263] [t=    7.51] [DEBUG] [LatencyCollector] High queuing: flow=203, queue=1.4857s, serve=1.7061s, path=6 hops
+[10:22:30.263] [t=    7.51] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=1.8878s, serve=2.9399s, path=6 hops
+[10:22:30.266] [t=    7.52] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=0.5866s, serve=0.8595s, path=2 hops
+[10:22:30.268] [t=    7.53] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=0.6903s, serve=1.8005s, path=6 hops
+[10:22:30.270] [t=    7.55] [DEBUG] [LatencyCollector] High queuing: flow=225, queue=0.2118s, serve=0.3416s, path=6 hops
+[10:22:30.271] [t=    7.57] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=0.7644s, serve=0.9375s, path=4 hops
+[10:22:30.271] [t=    7.57] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=0.3737s, serve=1.5327s, path=6 hops
+[10:22:30.274] [t=    7.59] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.6059s, serve=1.8081s, path=6 hops
+[10:22:30.275] [t=    7.59] [DEBUG] [LatencyCollector] High queuing: flow=185, queue=0.5327s, serve=1.5275s, path=6 hops
+[10:22:30.277] [t=    7.60] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.1722s, serve=3.5193s, path=6 hops
+[10:22:30.278] [t=    7.60] [DEBUG] [LatencyCollector] High queuing: flow=191, queue=0.8630s, serve=1.0874s, path=6 hops
+[10:22:30.278] [t=    7.61] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=1.1535s, serve=1.5787s, path=6 hops
+[10:22:30.282] [t=    7.63] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=1.9182s, serve=2.3051s, path=6 hops
+[10:22:30.282] [t=    7.63] [DEBUG] [LatencyCollector] High queuing: flow=168, queue=0.7709s, serve=0.9521s, path=6 hops
+[10:22:30.282] [t=    7.64] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=0.7990s, serve=1.2235s, path=2 hops
+[10:22:30.283] [t=    7.66] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=2.2910s, serve=2.5830s, path=6 hops
+[10:22:30.283] [t=    7.66] [DEBUG] [LatencyCollector] High queuing: flow=153, queue=0.2310s, serve=0.3778s, path=6 hops
+[10:22:30.285] [t=    7.68] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=1.0285s, serve=1.3602s, path=6 hops
+[10:22:30.286] [t=    7.69] [DEBUG] [LatencyCollector] High queuing: flow=208, queue=0.2797s, serve=1.0782s, path=4 hops
+[10:22:30.292] [t=    7.69] [DEBUG] [LatencyCollector] High queuing: flow=37, queue=0.1929s, serve=1.2462s, path=6 hops
+[10:22:30.294] [t=    7.70] [DEBUG] [LatencyCollector] High queuing: flow=239, queue=0.6918s, serve=1.1992s, path=2 hops
+[10:22:30.294] [t=    7.70] [DEBUG] [LatencyCollector] High queuing: flow=32, queue=0.2527s, serve=0.4081s, path=2 hops
+[10:22:30.294] [t=    7.70] [DEBUG] [LatencyCollector] High queuing: flow=231, queue=0.4961s, serve=0.6698s, path=6 hops
+[10:22:30.294] [t=    7.70] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.6941s, serve=1.5466s, path=6 hops
+[10:22:30.294] [t=    7.72] [DEBUG] [LatencyCollector] High queuing: flow=233, queue=1.1215s, serve=1.3358s, path=6 hops
+[10:22:30.294] [t=    7.74] [DEBUG] [LatencyCollector] High queuing: flow=236, queue=0.9808s, serve=1.9649s, path=6 hops
+[10:22:30.294] [t=    7.74] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.0626s, serve=1.2175s, path=6 hops
+[10:22:30.294] [t=    7.75] [DEBUG] [LatencyCollector] High queuing: flow=223, queue=0.5066s, serve=1.6954s, path=4 hops
+[10:22:30.302] [t=    7.76] [DEBUG] [LatencyCollector] High queuing: flow=93, queue=1.1129s, serve=1.6486s, path=6 hops
+[10:22:30.302] [t=    7.77] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=0.5126s, serve=1.5231s, path=6 hops
+[10:22:30.304] [t=    7.78] [DEBUG] [LatencyCollector] High queuing: flow=207, queue=1.1299s, serve=1.4298s, path=2 hops
+[10:22:30.304] [t=    7.78] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=2.1826s, serve=2.3183s, path=6 hops
+[10:22:30.304] [t=    7.78] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=2.9005s, serve=3.1578s, path=6 hops
+[10:22:30.308] [t=    7.81] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=0.2418s, serve=0.5175s, path=6 hops
+[10:22:30.309] [t=    7.81] [DEBUG] [SDNDatacenter  ] Pkt #1400: flow=51, serve=0.1194s, prop=0.0000s, tx=0.1033s, queue=0.0161s, path=6
+[10:22:30.310] [t=    7.83] [DEBUG] [LatencyCollector] High queuing: flow=107, queue=0.2512s, serve=0.8544s, path=6 hops
+[10:22:30.310] [t=    7.83] [DEBUG] [LatencyCollector] High queuing: flow=108, queue=0.5344s, serve=0.6467s, path=6 hops
+[10:22:30.310] [t=    7.83] [DEBUG] [LatencyCollector] High queuing: flow=9, queue=1.1150s, serve=1.4771s, path=6 hops
+[10:22:30.310] [t=    7.86] [DEBUG] [LatencyCollector] High queuing: flow=239, queue=1.0407s, serve=1.1738s, path=2 hops
+[10:22:30.311] [t=    7.86] [DEBUG] [LatencyCollector] High queuing: flow=229, queue=0.1909s, serve=0.6761s, path=6 hops
+[10:22:30.311] [t=    7.86] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.1605s, serve=0.6623s, path=6 hops
+[10:22:30.311] [t=    7.87] [DEBUG] [LatencyCollector] High queuing: flow=37, queue=1.2365s, serve=1.3929s, path=6 hops
+[10:22:30.314] [t=    7.89] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=0.2787s, serve=0.6025s, path=4 hops
+[10:22:30.316] [t=    7.90] [DEBUG] [LatencyCollector] High queuing: flow=82, queue=1.1447s, serve=1.6135s, path=6 hops
+[10:22:30.316] [t=    7.90] [DEBUG] [LatencyCollector] High queuing: flow=39, queue=0.2032s, serve=0.7619s, path=6 hops
+[10:22:30.317] [t=    7.91] [DEBUG] [LatencyCollector] High queuing: flow=223, queue=1.2226s, serve=1.3867s, path=4 hops
+[10:22:30.317] [t=    7.91] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.2696s, serve=1.7588s, path=6 hops
+[10:22:30.318] [t=    7.92] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=0.1267s, serve=1.0731s, path=6 hops
+[10:22:30.318] [t=    7.92] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=1.1989s, serve=1.4823s, path=2 hops
+[10:22:30.319] [t=    7.93] [DEBUG] [LatencyCollector] High queuing: flow=183, queue=0.7841s, serve=1.2466s, path=6 hops
+[10:22:30.320] [t=    7.93] [DEBUG] [LatencyCollector] High queuing: flow=207, queue=0.7887s, serve=0.9315s, path=2 hops
+[10:22:30.324] [t=    7.96] [DEBUG] [LatencyCollector] High queuing: flow=99, queue=0.1813s, serve=1.0187s, path=6 hops
+[10:22:30.325] [t=    7.99] [DEBUG] [LatencyCollector] High queuing: flow=231, queue=0.5269s, serve=0.7967s, path=6 hops
+[10:22:30.326] [t=    7.99] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.3714s, serve=0.8782s, path=6 hops
+[10:22:30.326] [t=    7.99] [DEBUG] [LatencyCollector] High queuing: flow=199, queue=0.5469s, serve=0.6636s, path=6 hops
+[10:22:30.327] [t=    7.99] [DEBUG] [LatencyCollector] High queuing: flow=93, queue=1.5758s, serve=1.8101s, path=6 hops
+[10:22:30.330] [t=    8.04] [DEBUG] [LatencyCollector] High queuing: flow=239, queue=0.5890s, serve=0.7458s, path=2 hops
+[10:22:30.332] [t=    8.05] [DEBUG] [LatencyCollector] High queuing: flow=184, queue=0.2278s, serve=1.0860s, path=6 hops
+[10:22:30.332] [t=    8.05] [DEBUG] [LatencyCollector] High queuing: flow=108, queue=0.6062s, serve=0.8252s, path=6 hops
+[10:22:30.333] [t=    8.06] [DEBUG] [LatencyCollector] High queuing: flow=82, queue=0.6410s, serve=0.8022s, path=6 hops
+[10:22:30.335] [t=    8.07] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=1.2795s, serve=1.4290s, path=2 hops
+[10:22:30.335] [t=    8.07] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=1.7393s, serve=2.2590s, path=6 hops
+[10:22:30.336] [t=    8.09] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=0.4687s, serve=0.6632s, path=4 hops
+[10:22:30.336] [t=    8.09] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=0.3432s, serve=0.8245s, path=6 hops
+[10:22:30.337] [t=    8.10] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.8488s, serve=0.9597s, path=6 hops
+[10:22:30.338] [t=    8.10] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=1.2753s, serve=2.0731s, path=6 hops
+[10:22:30.339] [t=    8.11] [DEBUG] [LatencyCollector] High queuing: flow=197, queue=0.1255s, serve=0.3934s, path=6 hops
+[10:22:30.341] [t=    8.13] [DEBUG] [LatencyCollector] High queuing: flow=9, queue=1.2099s, serve=1.5179s, path=6 hops
+[10:22:30.345] [t=    8.15] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=1.8452s, serve=2.6171s, path=6 hops
+[10:22:30.345] [t=    8.17] [DEBUG] [LatencyCollector] High queuing: flow=78, queue=0.2229s, serve=0.7000s, path=6 hops
+[10:22:30.345] [t=    8.17] [DEBUG] [LatencyCollector] High queuing: flow=84, queue=0.7194s, serve=1.0849s, path=6 hops
+[10:22:30.348] [t=    8.19] [DEBUG] [LatencyCollector] High queuing: flow=17, queue=0.2726s, serve=0.9316s, path=4 hops
+[10:22:30.348] [t=    8.19] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=1.6925s, serve=2.0972s, path=6 hops
+[10:22:30.349] [t=    8.20] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.2785s, serve=1.5767s, path=6 hops
+[10:22:30.350] [t=    8.21] [DEBUG] [LatencyCollector] High queuing: flow=239, queue=0.6663s, serve=0.8396s, path=2 hops
+[10:22:30.352] [t=    8.22] [DEBUG] [LatencyCollector] High queuing: flow=202, queue=0.2344s, serve=0.9183s, path=6 hops
+[10:22:30.352] [t=    8.23] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=1.1265s, serve=1.9716s, path=6 hops
+[10:22:30.352] [t=    8.23] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=1.2730s, serve=2.4519s, path=6 hops
+[10:22:30.352] [t=    8.23] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.8050s, serve=0.9303s, path=6 hops
+[10:22:30.353] [t=    8.25] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=2.0291s, serve=2.1930s, path=6 hops
+[10:22:30.356] [t=    8.25] [DEBUG] [LatencyCollector] High queuing: flow=39, queue=0.2162s, serve=0.5771s, path=6 hops
+[10:22:30.364] [t=    8.28] [DEBUG] [LatencyCollector] High queuing: flow=230, queue=1.1044s, serve=2.1904s, path=6 hops
+[10:22:30.364] [t=    8.28] [DEBUG] [LatencyCollector] High queuing: flow=229, queue=0.5874s, serve=1.0277s, path=6 hops
+[10:22:30.365] [t=    8.28] [DEBUG] [LatencyCollector] High queuing: flow=37, queue=0.4889s, serve=0.8973s, path=6 hops
+[10:22:30.365] [t=    8.29] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=1.9728s, serve=2.1415s, path=6 hops
+[10:22:30.366] [t=    8.30] [DEBUG] [LatencyCollector] High queuing: flow=147, queue=0.1968s, serve=0.4209s, path=6 hops
+[10:22:30.367] [t=    8.31] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=0.5466s, serve=0.6624s, path=6 hops
+[10:22:30.372] [t=    8.32] [DEBUG] [LatencyCollector] High queuing: flow=223, queue=0.5514s, serve=0.9088s, path=4 hops
+[10:22:30.372] [t=    8.32] [DEBUG] [LatencyCollector] High queuing: flow=203, queue=0.8776s, serve=1.5849s, path=6 hops
+[10:22:30.372] [t=    8.32] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=0.8634s, serve=0.9946s, path=6 hops
+[10:22:30.372] [t=    8.32] [DEBUG] [SDNDatacenter  ] Pkt #1500: flow=132, serve=0.9946s, prop=0.0000s, tx=0.1313s, queue=0.8634s, path=6
+[10:22:30.375] [t=    8.33] [DEBUG] [LatencyCollector] High queuing: flow=236, queue=1.3943s, serve=2.0186s, path=6 hops
+[10:22:30.375] [t=    8.33] [DEBUG] [LatencyCollector] High queuing: flow=107, queue=0.8565s, serve=1.2757s, path=6 hops
+[10:22:30.375] [t=    8.36] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=1.0800s, serve=1.1941s, path=6 hops
+[10:22:30.375] [t=    8.36] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.5525s, serve=1.0805s, path=6 hops
+[10:22:30.375] [t=    8.37] [DEBUG] [LatencyCollector] High queuing: flow=238, queue=0.1139s, serve=0.8532s, path=4 hops
+[10:22:30.375] [t=    8.37] [DEBUG] [LatencyCollector] High queuing: flow=17, queue=0.8575s, serve=1.0227s, path=4 hops
+[10:22:30.384] [t=    8.37] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=1.3703s, serve=2.1639s, path=6 hops
+[10:22:30.384] [t=    8.38] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=0.7691s, serve=1.2554s, path=6 hops
+[10:22:30.387] [t=    8.39] [DEBUG] [LatencyCollector] High queuing: flow=220, queue=1.1307s, serve=1.3757s, path=6 hops
+[10:22:30.390] [t=    8.40] [DEBUG] [LatencyCollector] High queuing: flow=78, queue=0.6592s, serve=0.8782s, path=6 hops
+[10:22:30.390] [t=    8.40] [DEBUG] [LatencyCollector] High queuing: flow=202, queue=0.8960s, serve=1.0848s, path=6 hops
+[10:22:30.397] [t=    8.43] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=0.3501s, serve=0.9605s, path=6 hops
+[10:22:30.397] [t=    8.43] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=1.9769s, serve=2.1652s, path=6 hops
+[10:22:30.401] [t=    8.45] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=1.4490s, serve=1.7088s, path=6 hops
+[10:22:30.401] [t=    8.45] [DEBUG] [LatencyCollector] High queuing: flow=183, queue=0.1391s, serve=0.6306s, path=6 hops
+[10:22:30.404] [t=    8.47] [DEBUG] [LatencyCollector] High queuing: flow=229, queue=0.3586s, serve=0.5450s, path=6 hops
+[10:22:30.404] [t=    8.47] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.8378s, serve=0.9400s, path=6 hops
+[10:22:30.406] [t=    8.47] [DEBUG] [LatencyCollector] High queuing: flow=63, queue=0.6885s, serve=0.7932s, path=6 hops
+[10:22:30.406] [t=    8.49] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=0.8018s, serve=1.1849s, path=6 hops
+[10:22:30.406] [t=    8.50] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=2.5841s, serve=3.4060s, path=6 hops
+[10:22:30.415] [t=    8.51] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.6203s, serve=0.9315s, path=6 hops
+[10:22:30.415] [t=    8.51] [DEBUG] [LatencyCollector] High queuing: flow=84, queue=0.8761s, serve=1.2135s, path=6 hops
+[10:22:30.415] [t=    8.52] [DEBUG] [LatencyCollector] High queuing: flow=57, queue=0.1934s, serve=1.1736s, path=6 hops
+[10:22:30.422] [t=    8.54] [DEBUG] [LatencyCollector] High queuing: flow=78, queue=0.8231s, serve=0.9654s, path=6 hops
+[10:22:30.428] [t=    8.57] [DEBUG] [LatencyCollector] High queuing: flow=9, queue=1.4115s, serve=1.8320s, path=6 hops
+[10:22:30.432] [t=    8.58] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=0.8659s, serve=1.9046s, path=2 hops
+[10:22:30.434] [t=    8.59] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=1.3006s, serve=1.5116s, path=6 hops
+[10:22:30.441] [t=    8.60] [DEBUG] [LatencyCollector] High queuing: flow=24, queue=0.5766s, serve=1.4772s, path=6 hops
+[10:22:30.442] [t=    8.61] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=0.4882s, serve=0.6616s, path=6 hops
+[10:22:30.448] [t=    8.65] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=0.8223s, serve=1.6734s, path=6 hops
+[10:22:30.461] [t=    8.66] [DEBUG] [LatencyCollector] High queuing: flow=144, queue=0.5653s, serve=1.7433s, path=4 hops
+[10:22:30.464] [t=    8.66] [DEBUG] [LatencyCollector] High queuing: flow=107, queue=1.1550s, serve=1.5096s, path=6 hops
+[10:22:30.470] [t=    8.67] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=0.9865s, serve=1.3256s, path=6 hops
+[10:22:30.479] [t=    8.68] [DEBUG] [LatencyCollector] High queuing: flow=208, queue=0.7318s, serve=0.9383s, path=4 hops
+[10:22:30.482] [t=    8.70] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=1.1946s, serve=1.4596s, path=6 hops
+[10:22:30.485] [t=    8.70] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.3074s, serve=4.3936s, path=6 hops
+[10:22:30.485] [t=    8.70] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.0846s, serve=1.9721s, path=6 hops
+[10:22:30.494] [t=    8.73] [DEBUG] [LatencyCollector] High queuing: flow=24, queue=0.6078s, serve=0.7398s, path=6 hops
+[10:22:30.496] [t=    8.76] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=0.6153s, serve=0.9971s, path=6 hops
+[10:22:30.496] [t=    8.76] [DEBUG] [LatencyCollector] High queuing: flow=9, queue=1.4181s, serve=1.5976s, path=6 hops
+[10:22:30.501] [t=    8.78] [DEBUG] [LatencyCollector] High queuing: flow=233, queue=1.1008s, serve=2.1241s, path=6 hops
+[10:22:30.503] [t=    8.79] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=2.3350s, serve=3.2926s, path=6 hops
+[10:22:30.503] [t=    8.79] [DEBUG] [LatencyCollector] High queuing: flow=37, queue=0.5634s, serve=1.1535s, path=6 hops
+[10:22:30.507] [t=    8.80] [DEBUG] [LatencyCollector] High queuing: flow=107, queue=1.2533s, serve=1.3843s, path=6 hops
+[10:22:30.507] [t=    8.80] [DEBUG] [LatencyCollector] High queuing: flow=236, queue=2.0138s, serve=2.4242s, path=6 hops
+[10:22:30.511] [t=    8.81] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=0.6753s, serve=1.6647s, path=6 hops
+[10:22:30.514] [t=    8.83] [DEBUG] [LatencyCollector] High queuing: flow=2, queue=0.7867s, serve=0.9465s, path=4 hops
+[10:22:30.514] [t=    8.83] [DEBUG] [LatencyCollector] High queuing: flow=116, queue=0.3772s, serve=0.6175s, path=6 hops
+[10:22:30.514] [t=    8.83] [DEBUG] [LatencyCollector] High queuing: flow=108, queue=0.8811s, serve=1.5882s, path=6 hops
+[10:22:30.521] [t=    8.84] [DEBUG] [LatencyCollector] High queuing: flow=17, queue=0.2674s, serve=0.7277s, path=4 hops
+[10:22:30.532] [t=    8.84] [DEBUG] [SDNDatacenter  ] Pkt #1600: flow=49, serve=0.0984s, prop=0.0000s, tx=0.1094s, queue=0.0000s, path=6
+[10:22:30.535] [t=    8.86] [DEBUG] [LatencyCollector] High queuing: flow=173, queue=0.6005s, serve=1.5267s, path=4 hops
+[10:22:30.538] [t=    8.87] [DEBUG] [LatencyCollector] High queuing: flow=144, queue=1.3140s, serve=1.5268s, path=4 hops
+[10:22:30.538] [t=    8.89] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=0.7975s, serve=1.8016s, path=2 hops
+[10:22:30.538] [t=    8.89] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.0691s, serve=1.7641s, path=6 hops
+[10:22:30.538] [t=    8.91] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=1.8756s, serve=2.5384s, path=6 hops
+[10:22:30.538] [t=    8.91] [DEBUG] [LatencyCollector] High queuing: flow=184, queue=0.8569s, serve=1.7724s, path=6 hops
+[10:22:30.538] [t=    8.91] [DEBUG] [LatencyCollector] High queuing: flow=202, queue=0.7158s, serve=1.2169s, path=6 hops
+[10:22:30.545] [t=    8.93] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=1.5194s, serve=1.7907s, path=6 hops
+[10:22:30.545] [t=    8.94] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.5863s, serve=1.2162s, path=6 hops
+[10:22:30.545] [t=    8.94] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=0.8033s, serve=0.9736s, path=6 hops
+[10:22:30.545] [t=    8.94] [DEBUG] [LatencyCollector] High queuing: flow=84, queue=1.1583s, serve=1.5823s, path=6 hops
+[10:22:30.545] [t=    8.94] [DEBUG] [LatencyCollector] High queuing: flow=63, queue=0.4564s, serve=0.8987s, path=6 hops
+[10:22:30.545] [t=    8.95] [DEBUG] [LatencyCollector] High queuing: flow=57, queue=1.0298s, serve=1.5998s, path=6 hops
+[10:22:30.556] [t=    8.96] [DEBUG] [LatencyCollector] High queuing: flow=206, queue=0.1412s, serve=0.2887s, path=6 hops
+[10:22:30.558] [t=    8.97] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=1.6254s, serve=1.7961s, path=6 hops
+[10:22:30.558] [t=    8.97] [DEBUG] [LatencyCollector] High queuing: flow=220, queue=1.3122s, serve=1.8992s, path=6 hops
+[10:22:30.563] [t=    8.98] [DEBUG] [LatencyCollector] High queuing: flow=83, queue=0.1327s, serve=0.4436s, path=6 hops
+[10:22:30.573] [t=    9.01] [DEBUG] [LatencyCollector] High queuing: flow=208, queue=0.8778s, serve=1.1956s, path=4 hops
+[10:22:30.575] [t=    9.03] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=1.4856s, serve=2.2215s, path=6 hops
+[10:22:30.576] [t=    9.04] [DEBUG] [LatencyCollector] High queuing: flow=202, queue=1.1262s, serve=1.2598s, path=6 hops
+[10:22:30.578] [t=    9.06] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=1.0031s, serve=1.6305s, path=6 hops
+[10:22:30.578] [t=    9.06] [DEBUG] [LatencyCollector] High queuing: flow=116, queue=0.6031s, serve=0.8272s, path=6 hops
+[10:22:30.578] [t=    9.06] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.6049s, serve=1.9865s, path=6 hops
+[10:22:30.578] [t=    9.06] [DEBUG] [LatencyCollector] High queuing: flow=9, queue=0.6182s, serve=0.9106s, path=6 hops
+[10:22:30.581] [t=    9.07] [DEBUG] [LatencyCollector] High queuing: flow=99, queue=0.2264s, serve=0.8492s, path=6 hops
+[10:22:30.583] [t=    9.08] [DEBUG] [LatencyCollector] High queuing: flow=231, queue=0.5575s, serve=1.8000s, path=6 hops
+[10:22:30.583] [t=    9.08] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.4315s, serve=1.0839s, path=6 hops
+[10:22:30.584] [t=    9.08] [DEBUG] [LatencyCollector] High queuing: flow=67, queue=0.4635s, serve=1.0754s, path=6 hops
+[10:22:30.584] [t=    9.09] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=0.7893s, serve=1.7225s, path=6 hops
+[10:22:30.585] [t=    9.10] [DEBUG] [LatencyCollector] High queuing: flow=2, queue=0.7995s, serve=1.0935s, path=4 hops
+[10:22:30.585] [t=    9.10] [DEBUG] [LatencyCollector] High queuing: flow=138, queue=0.7837s, serve=1.0969s, path=6 hops
+[10:22:30.589] [t=    9.11] [DEBUG] [LatencyCollector] High queuing: flow=227, queue=0.5508s, serve=1.2811s, path=6 hops
+[10:22:30.600] [t=    9.15] [DEBUG] [LatencyCollector] High queuing: flow=153, queue=0.2799s, serve=1.1456s, path=6 hops
+[10:22:30.609] [t=    9.18] [DEBUG] [LatencyCollector] High queuing: flow=202, queue=0.7310s, serve=0.8679s, path=6 hops
+[10:22:30.610] [t=    9.19] [DEBUG] [LatencyCollector] High queuing: flow=40, queue=0.3123s, serve=0.9290s, path=6 hops
+[10:22:30.612] [t=    9.19] [DEBUG] [LatencyCollector] High queuing: flow=209, queue=0.8227s, serve=1.0027s, path=4 hops
+[10:22:30.613] [t=    9.20] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.3835s, serve=1.6876s, path=6 hops
+[10:22:30.613] [t=    9.20] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.3784s, serve=0.5138s, path=6 hops
+[10:22:30.613] [t=    9.20] [DEBUG] [LatencyCollector] High queuing: flow=215, queue=0.1447s, serve=0.6500s, path=6 hops
+[10:22:30.613] [t=    9.21] [DEBUG] [LatencyCollector] High queuing: flow=2, queue=0.7896s, serve=0.8927s, path=4 hops
+[10:22:30.618] [t=    9.23] [DEBUG] [LatencyCollector] High queuing: flow=230, queue=0.8991s, serve=1.8815s, path=6 hops
+[10:22:30.618] [t=    9.23] [DEBUG] [LatencyCollector] High queuing: flow=24, queue=0.5842s, serve=1.0817s, path=6 hops
+[10:22:30.618] [t=    9.23] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=3.3214s, serve=4.1327s, path=6 hops
+[10:22:30.619] [t=    9.23] [DEBUG] [LatencyCollector] High queuing: flow=173, queue=1.4232s, serve=1.8192s, path=4 hops
+[10:22:30.629] [t=    9.27] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=1.1660s, serve=2.1368s, path=6 hops
+[10:22:30.637] [t=    9.30] [DEBUG] [LatencyCollector] High queuing: flow=182, queue=0.1780s, serve=0.5953s, path=6 hops
+[10:22:30.640] [t=    9.31] [DEBUG] [LatencyCollector] High queuing: flow=231, queue=0.1202s, serve=0.3415s, path=6 hops
+[10:22:30.640] [t=    9.31] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=3.2788s, serve=3.7995s, path=6 hops
+[10:22:30.640] [t=    9.31] [DEBUG] [LatencyCollector] High queuing: flow=185, queue=0.1594s, serve=0.4006s, path=6 hops
+[10:22:30.641] [t=    9.31] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=2.1642s, serve=2.4528s, path=6 hops
+[10:22:30.645] [t=    9.34] [DEBUG] [LatencyCollector] High queuing: flow=144, queue=1.5437s, serve=1.9936s, path=4 hops
+[10:22:30.645] [t=    9.34] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=1.3337s, serve=2.0076s, path=6 hops
+[10:22:30.645] [t=    9.34] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=0.7009s, serve=1.0614s, path=6 hops
+[10:22:30.647] [t=    9.35] [DEBUG] [LatencyCollector] High queuing: flow=158, queue=0.2763s, serve=0.5790s, path=4 hops
+[10:22:30.653] [t=    9.38] [DEBUG] [LatencyCollector] High queuing: flow=203, queue=1.6421s, serve=2.6327s, path=6 hops
+[10:22:30.653] [t=    9.38] [DEBUG] [SDNDatacenter  ] Pkt #1700: flow=62, serve=0.3706s, prop=0.0000s, tx=0.3448s, queue=0.0257s, path=6
+[10:22:30.657] [t=    9.39] [DEBUG] [LatencyCollector] High queuing: flow=173, queue=0.2722s, serve=0.4171s, path=4 hops
+[10:22:30.657] [t=    9.39] [DEBUG] [LatencyCollector] High queuing: flow=69, queue=0.1729s, serve=1.3521s, path=6 hops
+[10:22:30.657] [t=    9.40] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=0.9857s, serve=1.4904s, path=2 hops
+[10:22:30.664] [t=    9.41] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=0.8066s, serve=1.2470s, path=6 hops
+[10:22:30.666] [t=    9.42] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=4.4271s, serve=5.1016s, path=6 hops
+[10:22:30.667] [t=    9.42] [DEBUG] [LatencyCollector] High queuing: flow=153, queue=1.0582s, serve=1.3302s, path=6 hops
+[10:22:30.668] [t=    9.43] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.4648s, serve=0.7013s, path=6 hops
+[10:22:30.669] [t=    9.43] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=1.1510s, serve=1.8761s, path=6 hops
+[10:22:30.672] [t=    9.44] [DEBUG] [LatencyCollector] High queuing: flow=239, queue=0.2157s, serve=0.5093s, path=2 hops
+[10:22:30.672] [t=    9.44] [DEBUG] [LatencyCollector] High queuing: flow=229, queue=0.2236s, serve=0.6124s, path=6 hops
+[10:22:30.674] [t=    9.44] [DEBUG] [LatencyCollector] High queuing: flow=233, queue=0.3438s, serve=1.0057s, path=6 hops
+[10:22:30.674] [t=    9.45] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=0.4584s, serve=1.1472s, path=6 hops
+[10:22:30.674] [t=    9.45] [DEBUG] [LatencyCollector] High queuing: flow=185, queue=0.3521s, serve=0.4957s, path=6 hops
+[10:22:30.681] [t=    9.47] [DEBUG] [LatencyCollector] High queuing: flow=236, queue=1.8189s, serve=2.3275s, path=6 hops
+[10:22:30.681] [t=    9.47] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=1.5027s, serve=1.8564s, path=6 hops
+[10:22:30.683] [t=    9.50] [DEBUG] [LatencyCollector] High queuing: flow=17, queue=0.6670s, serve=1.3417s, path=4 hops
+[10:22:30.683] [t=    9.50] [DEBUG] [LatencyCollector] High queuing: flow=20, queue=0.2528s, serve=0.3564s, path=6 hops
+[10:22:30.686] [t=    9.51] [DEBUG] [LatencyCollector] High queuing: flow=223, queue=0.2369s, serve=1.0242s, path=4 hops
+[10:22:30.686] [t=    9.51] [DEBUG] [LatencyCollector] High queuing: flow=227, queue=1.1384s, serve=1.4487s, path=6 hops
+[10:22:30.687] [t=    9.51] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=1.9769s, serve=2.1750s, path=6 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=1.9589s, serve=2.8773s, path=2 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=143, queue=0.1517s, serve=0.9225s, path=2 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=144, queue=0.8708s, serve=1.0579s, path=4 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=173, queue=0.3977s, serve=0.5377s, path=4 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=208, queue=0.9221s, serve=1.4477s, path=4 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=1.4716s, serve=1.9925s, path=6 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=220, queue=1.6243s, serve=2.1575s, path=6 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=69, queue=1.0206s, serve=1.2018s, path=6 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=99, queue=0.2731s, serve=0.5346s, path=6 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=2.5349s, serve=2.7355s, path=6 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=4.8609s, serve=4.9781s, path=6 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.4746s, serve=0.6224s, path=6 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=0.6191s, serve=1.6454s, path=6 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=153, queue=1.2033s, serve=1.3207s, path=6 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=147, queue=0.1317s, serve=0.7705s, path=6 hops
+[10:22:30.689] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=102, queue=0.8258s, serve=1.0753s, path=6 hops
+[10:22:30.690] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=0.9202s, serve=1.0334s, path=6 hops
+[10:22:30.690] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=184, queue=1.1795s, serve=1.9474s, path=6 hops
+[10:22:30.690] [t=    9.61] [DEBUG] [LatencyCollector] High queuing: flow=202, queue=0.5535s, serve=0.9304s, path=6 hops
+[10:22:30.691] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=111, queue=0.4532s, serve=0.6263s, path=2 hops
+[10:22:30.692] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=238, queue=0.1187s, serve=0.5550s, path=4 hops
+[10:22:30.692] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=237, queue=0.5409s, serve=0.9357s, path=4 hops
+[10:22:30.692] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=194, queue=0.3193s, serve=1.2612s, path=4 hops
+[10:22:30.692] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=1.2253s, serve=1.4017s, path=6 hops
+[10:22:30.692] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=37, queue=0.7491s, serve=1.5324s, path=6 hops
+[10:22:30.692] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=97, queue=0.1302s, serve=0.5419s, path=6 hops
+[10:22:30.692] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=107, queue=1.2570s, serve=2.1139s, path=6 hops
+[10:22:30.692] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=0.7271s, serve=1.6629s, path=6 hops
+[10:22:30.692] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=203, queue=2.3835s, serve=2.6914s, path=6 hops
+[10:22:30.692] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=0.9004s, serve=1.0563s, path=6 hops
+[10:22:30.692] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=108, queue=0.3194s, serve=1.1622s, path=6 hops
+[10:22:30.693] [t=    9.71] [DEBUG] [LatencyCollector] High queuing: flow=39, queue=0.1471s, serve=0.5396s, path=6 hops
+[10:22:30.694] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=2.3467s, serve=2.5114s, path=2 hops
+[10:22:30.694] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=143, queue=0.5113s, serve=0.6381s, path=2 hops
+[10:22:30.694] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=1.9364s, serve=2.0869s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=230, queue=1.9617s, serve=2.3247s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=220, queue=1.9976s, serve=2.1073s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=134, queue=0.1392s, serve=0.4953s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.3240s, serve=0.6922s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=69, queue=1.1699s, serve=1.3215s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=27, queue=1.1697s, serve=1.5349s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=2.6159s, serve=2.8070s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=226, queue=0.1490s, serve=0.4167s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=225, queue=0.2569s, serve=0.7839s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=119, queue=0.6219s, serve=0.7715s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=153, queue=1.2573s, serve=1.4343s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=87, queue=0.2343s, serve=0.6501s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.5008s, serve=2.0615s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=202, queue=0.3732s, serve=0.5035s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=84, queue=0.4694s, serve=1.1147s, path=6 hops
+[10:22:30.695] [t=    9.81] [DEBUG] [LatencyCollector] High queuing: flow=168, queue=0.2834s, serve=0.6709s, path=6 hops
+[10:22:30.696] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=111, queue=0.5140s, serve=0.6361s, path=2 hops
+[10:22:30.696] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=110, queue=0.3857s, serve=0.9507s, path=4 hops
+[10:22:30.696] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=144, queue=0.8417s, serve=1.0416s, path=4 hops
+[10:22:30.696] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=194, queue=0.8136s, serve=0.9735s, path=4 hops
+[10:22:30.696] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=17, queue=0.7143s, serve=0.9849s, path=4 hops
+[10:22:30.696] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=173, queue=0.4642s, serve=0.6710s, path=4 hops
+[10:22:30.696] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=223, queue=0.9432s, serve=1.1827s, path=4 hops
+[10:22:30.696] [t=    9.91] [DEBUG] [SDNDatacenter  ] Pkt #1800: flow=223, serve=1.1827s, prop=0.0000s, tx=0.2394s, queue=0.9432s, path=4
+[10:22:30.696] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=208, queue=1.2544s, serve=1.5007s, path=4 hops
+[10:22:30.696] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=1.2112s, serve=1.9265s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=2.1829s, serve=3.0013s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=182, queue=0.5354s, serve=1.0855s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=1.1540s, serve=1.2956s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=215, queue=0.1542s, serve=0.4895s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=1.5857s, serve=1.7810s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=3.5886s, serve=4.2279s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=140, queue=0.2689s, serve=0.6169s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=205, queue=0.6624s, serve=0.9224s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=161, queue=0.2153s, serve=0.7910s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=138, queue=0.9792s, serve=1.6668s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=57, queue=1.1408s, serve=1.7997s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=0.9568s, serve=1.3152s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=184, queue=1.9398s, serve=2.1599s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=7, queue=0.1957s, serve=0.7782s, path=6 hops
+[10:22:30.697] [t=    9.91] [DEBUG] [LatencyCollector] High queuing: flow=201, queue=0.6686s, serve=1.3229s, path=6 hops
+[10:22:30.702] [t=   10.00] [DEBUG] [LatencyCollector] High queuing: flow=237, queue=1.0120s, serve=1.1783s, path=4 hops
+[10:22:30.702] [t=   10.00] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.6720s, serve=0.7633s, path=6 hops
+[10:22:30.702] [t=   10.00] [DEBUG] [LatencyCollector] High queuing: flow=69, queue=0.4486s, serve=0.5495s, path=6 hops
+[10:22:30.703] [t=   10.00] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=4.9783s, serve=5.1950s, path=6 hops
+[10:22:30.703] [t=   10.00] [DEBUG] [LatencyCollector] High queuing: flow=97, queue=0.4415s, serve=0.6017s, path=6 hops
+[10:22:30.703] [t=   10.00] [DEBUG] [LatencyCollector] High queuing: flow=107, queue=0.6284s, serve=0.7970s, path=6 hops
+[10:22:30.703] [t=   10.00] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=1.6477s, serve=1.8672s, path=6 hops
+[10:22:30.703] [t=   10.00] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.9758s, serve=2.0794s, path=6 hops
+[10:22:30.703] [t=   10.00] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=0.8931s, serve=1.4213s, path=6 hops
+[10:22:30.703] [t=   10.01] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=2.0480s, serve=2.2313s, path=6 hops
+[10:22:30.703] [t=   10.01] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=1.8739s, serve=1.9709s, path=6 hops
+[10:22:30.705] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=2, queue=0.9209s, serve=1.6149s, path=4 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=208, queue=1.4204s, serve=1.5972s, path=4 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=220, queue=2.0978s, serve=2.2985s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=182, queue=0.5784s, serve=0.7065s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=93, queue=0.3868s, serve=1.0503s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=42, queue=0.6397s, serve=1.4381s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=118, queue=0.1976s, serve=0.8935s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.7355s, serve=2.3693s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=1.1240s, serve=1.2872s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=153, queue=0.3950s, serve=0.6000s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=1.4123s, serve=1.8864s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=72, queue=0.9010s, serve=0.9903s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=203, queue=1.5084s, serve=1.8663s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=132, queue=1.1000s, serve=1.2214s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=184, queue=1.6686s, serve=1.8359s, path=6 hops
+[10:22:30.706] [t=   10.11] [DEBUG] [LatencyCollector] High queuing: flow=201, queue=1.2697s, serve=1.3779s, path=6 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=1.4720s, serve=1.8125s, path=2 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=237, queue=1.0030s, serve=1.1346s, path=4 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=17, queue=0.6962s, serve=0.9308s, path=4 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=2, queue=0.6754s, serve=0.7717s, path=4 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=109, queue=0.2537s, serve=0.9135s, path=4 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=1.1273s, serve=1.2838s, path=6 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=220, queue=1.7033s, serve=1.7757s, path=6 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=227, queue=1.0235s, serve=1.5582s, path=6 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=37, queue=1.5966s, serve=2.0097s, path=6 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=1.2711s, serve=2.0211s, path=6 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=2.0475s, serve=2.1490s, path=6 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=57, queue=1.8994s, serve=2.0742s, path=6 hops
+[10:22:30.707] [t=   10.21] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=1.4554s, serve=1.6001s, path=6 hops
+[10:22:30.707] [t=   10.31] [DEBUG] [LatencyCollector] High queuing: flow=17, queue=0.8019s, serve=0.8839s, path=4 hops
+[10:22:30.707] [t=   10.31] [DEBUG] [LatencyCollector] High queuing: flow=208, queue=1.4627s, serve=1.6245s, path=4 hops
+[10:22:30.707] [t=   10.31] [DEBUG] [LatencyCollector] High queuing: flow=196, queue=0.6077s, serve=0.9178s, path=6 hops
+[10:22:30.707] [t=   10.31] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=4.5105s, serve=4.7289s, path=6 hops
+[10:22:30.707] [t=   10.31] [DEBUG] [LatencyCollector] High queuing: flow=118, queue=0.9058s, serve=1.0820s, path=6 hops
+[10:22:30.707] [t=   10.31] [DEBUG] [LatencyCollector] High queuing: flow=180, queue=1.3562s, serve=1.4864s, path=6 hops
+[10:22:30.707] [t=   10.31] [DEBUG] [LatencyCollector] High queuing: flow=52, queue=0.2536s, serve=0.8522s, path=6 hops
+[10:22:30.707] [t=   10.31] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=1.8387s, serve=1.9510s, path=6 hops
+[10:22:30.707] [t=   10.31] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=2.1286s, serve=2.2137s, path=6 hops
+[10:22:30.707] [t=   10.31] [DEBUG] [LatencyCollector] High queuing: flow=57, queue=1.9829s, serve=2.0658s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=1.0522s, serve=1.7418s, path=2 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=1.2990s, serve=1.8139s, path=4 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=208, queue=1.5178s, serve=1.6168s, path=4 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=115, queue=0.3674s, serve=0.9985s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=228, queue=1.1041s, serve=1.2660s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=227, queue=0.9339s, serve=1.0338s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=1.3536s, serve=1.7034s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=189, queue=0.2747s, serve=1.0502s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=4.4927s, serve=4.5739s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.9948s, serve=2.2383s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=37, queue=1.6433s, serve=1.7561s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=102, queue=1.1239s, serve=1.6124s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=2.0490s, serve=2.1594s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=138, queue=1.8956s, serve=2.1624s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=203, queue=0.9118s, serve=1.1350s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=108, queue=1.2017s, serve=1.8120s, path=6 hops
+[10:22:30.709] [t=   10.41] [DEBUG] [LatencyCollector] High queuing: flow=185, queue=0.2845s, serve=0.9149s, path=6 hops
+[10:22:30.709] [t=   10.51] [DEBUG] [LatencyCollector] High queuing: flow=109, queue=0.8534s, serve=1.0299s, path=4 hops
+[10:22:30.709] [t=   10.51] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=2.5354s, serve=3.0247s, path=6 hops
+[10:22:30.709] [t=   10.51] [DEBUG] [LatencyCollector] High queuing: flow=113, queue=0.5076s, serve=1.1724s, path=6 hops
+[10:22:30.709] [t=   10.51] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=1.5295s, serve=1.6072s, path=6 hops
+[10:22:30.709] [t=   10.51] [DEBUG] [LatencyCollector] High queuing: flow=118, queue=1.1663s, serve=1.2731s, path=6 hops
+[10:22:30.709] [t=   10.51] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.0730s, serve=4.4542s, path=6 hops
+[10:22:30.709] [t=   10.51] [DEBUG] [LatencyCollector] High queuing: flow=102, queue=0.9511s, serve=1.0323s, path=6 hops
+[10:22:30.709] [t=   10.51] [DEBUG] [LatencyCollector] High queuing: flow=107, queue=0.8391s, serve=1.2112s, path=6 hops
+[10:22:30.711] [t=   10.51] [DEBUG] [LatencyCollector] High queuing: flow=138, queue=1.3844s, serve=1.4396s, path=6 hops
+[10:22:30.711] [t=   10.61] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=1.7453s, serve=1.8487s, path=2 hops
+[10:22:30.711] [t=   10.61] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=1.2062s, serve=1.5105s, path=2 hops
+[10:22:30.711] [t=   10.61] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=1.7025s, serve=1.8936s, path=4 hops
+[10:22:30.711] [t=   10.61] [DEBUG] [LatencyCollector] High queuing: flow=208, queue=1.4941s, serve=1.5975s, path=4 hops
+[10:22:30.711] [t=   10.61] [DEBUG] [LatencyCollector] High queuing: flow=220, queue=1.5036s, serve=1.8710s, path=6 hops
+[10:22:30.711] [t=   10.61] [DEBUG] [SDNDatacenter  ] Pkt #1900: flow=220, serve=1.8710s, prop=0.0000s, tx=0.3674s, queue=1.5036s, path=6
+[10:22:30.711] [t=   10.61] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=3.1989s, serve=3.5825s, path=6 hops
+[10:22:30.711] [t=   10.61] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=2.1656s, serve=2.3207s, path=6 hops
+[10:22:30.711] [t=   10.61] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=1.8628s, serve=2.0972s, path=6 hops
+[10:22:30.711] [t=   10.61] [DEBUG] [LatencyCollector] High queuing: flow=57, queue=1.1717s, serve=1.4197s, path=6 hops
+[10:22:30.711] [t=   10.61] [DEBUG] [LatencyCollector] High queuing: flow=108, queue=1.4757s, serve=1.6282s, path=6 hops
+[10:22:30.711] [t=   10.61] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=1.6207s, serve=1.9490s, path=6 hops
+[10:22:30.711] [t=   10.71] [DEBUG] [LatencyCollector] High queuing: flow=208, queue=1.3768s, serve=1.4565s, path=4 hops
+[10:22:30.711] [t=   10.71] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=2.4198s, serve=2.5130s, path=6 hops
+[10:22:30.711] [t=   10.71] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=4.6026s, serve=4.7864s, path=6 hops
+[10:22:30.711] [t=   10.71] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.9524s, serve=2.0052s, path=6 hops
+[10:22:30.711] [t=   10.71] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=1.9277s, serve=1.9764s, path=6 hops
+[10:22:30.711] [t=   10.71] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=1.9715s, serve=2.2662s, path=6 hops
+[10:22:30.711] [t=   10.71] [DEBUG] [LatencyCollector] High queuing: flow=138, queue=1.1779s, serve=1.3349s, path=6 hops
+[10:22:30.711] [t=   10.71] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=2.2162s, serve=2.5609s, path=6 hops
+[10:22:30.711] [t=   10.71] [DEBUG] [LatencyCollector] High queuing: flow=57, queue=1.2938s, serve=1.3498s, path=6 hops
+[10:22:30.711] [t=   10.71] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=0.6554s, serve=1.3228s, path=6 hops
+[10:22:30.711] [t=   10.71] [DEBUG] [LatencyCollector] High queuing: flow=184, queue=1.9135s, serve=2.3350s, path=6 hops
+[10:22:30.713] [t=   10.81] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=1.2340s, serve=1.8661s, path=6 hops
+[10:22:30.713] [t=   10.81] [DEBUG] [LatencyCollector] High queuing: flow=114, queue=1.9074s, serve=1.9679s, path=6 hops
+[10:22:30.713] [t=   10.81] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=3.5678s, serve=3.7254s, path=6 hops
+[10:22:30.713] [t=   10.81] [DEBUG] [LatencyCollector] High queuing: flow=22, queue=1.5570s, serve=1.7987s, path=6 hops
+[10:22:30.713] [t=   10.81] [DEBUG] [LatencyCollector] High queuing: flow=37, queue=0.9969s, serve=1.3581s, path=6 hops
+[10:22:30.713] [t=   10.81] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=2.1284s, serve=2.2048s, path=6 hops
+[10:22:30.713] [t=   10.81] [DEBUG] [LatencyCollector] High queuing: flow=184, queue=2.2073s, serve=2.2912s, path=6 hops
+[10:22:30.713] [t=   10.81] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=1.8461s, serve=2.0082s, path=6 hops
+[10:22:30.713] [t=   10.91] [DEBUG] [LatencyCollector] High queuing: flow=113, queue=1.2981s, serve=1.4606s, path=6 hops
+[10:22:30.713] [t=   10.91] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=2.5762s, serve=2.6063s, path=6 hops
+[10:22:30.713] [t=   10.91] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=4.1480s, serve=4.2581s, path=6 hops
+[10:22:30.713] [t=   10.91] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=2.1699s, serve=2.2457s, path=6 hops
+[10:22:30.713] [t=   11.01] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=1.5069s, serve=1.7953s, path=2 hops
+[10:22:30.713] [t=   11.01] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=2.6402s, serve=2.7024s, path=6 hops
+[10:22:30.713] [t=   11.01] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.8785s, serve=3.9085s, path=6 hops
+[10:22:30.713] [t=   11.01] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.9979s, serve=2.2459s, path=6 hops
+[10:22:30.713] [t=   11.01] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.0684s, serve=4.4999s, path=6 hops
+[10:22:30.713] [t=   11.01] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=1.9689s, serve=2.1822s, path=6 hops
+[10:22:30.713] [t=   11.01] [DEBUG] [LatencyCollector] High queuing: flow=177, queue=1.4607s, serve=1.7280s, path=6 hops
+[10:22:30.713] [t=   11.01] [DEBUG] [LatencyCollector] High queuing: flow=190, queue=1.3348s, serve=1.5694s, path=6 hops
+[10:22:30.713] [t=   11.01] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=2.0005s, serve=2.1566s, path=6 hops
+[10:22:30.713] [t=   11.11] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=1.8142s, serve=1.8429s, path=2 hops
+[10:22:30.713] [t=   11.11] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=2.4665s, serve=2.5345s, path=6 hops
+[10:22:30.713] [t=   11.11] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.7893s, serve=3.8541s, path=6 hops
+[10:22:30.713] [t=   11.11] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.8903s, serve=1.9323s, path=6 hops
+[10:22:30.713] [t=   11.21] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=1.8679s, serve=2.3535s, path=2 hops
+[10:22:30.713] [t=   11.21] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=1.7961s, serve=1.8178s, path=2 hops
+[10:22:30.713] [t=   11.21] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=1.8746s, serve=2.3214s, path=4 hops
+[10:22:30.713] [t=   11.21] [DEBUG] [LatencyCollector] High queuing: flow=181, queue=1.4931s, serve=1.8210s, path=6 hops
+[10:22:30.713] [t=   11.21] [DEBUG] [LatencyCollector] High queuing: flow=117, queue=1.7978s, serve=1.8196s, path=6 hops
+[10:22:30.713] [t=   11.31] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.8608s, serve=4.0375s, path=6 hops
+[10:22:30.713] [t=   11.31] [DEBUG] [LatencyCollector] High queuing: flow=198, queue=1.7181s, serve=1.8283s, path=6 hops
+[10:22:30.713] [t=   11.31] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.4158s, serve=4.6683s, path=6 hops
+[10:22:30.713] [t=   11.31] [DEBUG] [LatencyCollector] High queuing: flow=204, queue=2.2273s, serve=2.4499s, path=6 hops
+[10:22:30.713] [t=   11.31] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=2.1911s, serve=2.4247s, path=6 hops
+[10:22:30.715] [t=   11.41] [DEBUG] [LatencyCollector] High queuing: flow=175, queue=1.8363s, serve=1.9853s, path=2 hops
+[10:22:30.715] [t=   11.41] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=2.0103s, serve=2.1782s, path=4 hops
+[10:22:30.715] [t=   11.41] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=2.2208s, serve=2.5970s, path=6 hops
+[10:22:30.715] [t=   11.41] [DEBUG] [LatencyCollector] High queuing: flow=184, queue=1.7495s, serve=2.2224s, path=6 hops
+[10:22:30.715] [t=   11.51] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.8242s, serve=3.8801s, path=6 hops
+[10:22:30.715] [t=   11.51] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.6777s, serve=4.8666s, path=6 hops
+[10:22:30.715] [t=   11.51] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=2.6063s, serve=2.6789s, path=6 hops
+[10:22:30.715] [t=   11.51] [DEBUG] [LatencyCollector] High queuing: flow=184, queue=2.1970s, serve=2.2681s, path=6 hops
+[10:22:30.715] [t=   11.51] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=2.4112s, serve=2.5420s, path=6 hops
+[10:22:30.715] [t=   11.61] [DEBUG] [LatencyCollector] High queuing: flow=193, queue=2.1674s, serve=2.2543s, path=4 hops
+[10:22:30.715] [t=   11.61] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.6413s, serve=3.6532s, path=6 hops
+[10:22:30.715] [t=   11.61] [DEBUG] [LatencyCollector] High queuing: flow=195, queue=2.1138s, serve=2.1717s, path=6 hops
+[10:22:30.715] [t=   11.71] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=2.4038s, serve=2.6825s, path=2 hops
+[10:22:30.715] [t=   11.71] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.3323s, serve=3.3444s, path=6 hops
+[10:22:30.715] [t=   11.71] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.8988s, serve=5.0150s, path=6 hops
+[10:22:30.715] [t=   11.71] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=2.5421s, serve=2.6715s, path=6 hops
+[10:22:30.715] [t=   11.81] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.4021s, serve=3.4229s, path=6 hops
+[10:22:30.715] [t=   11.81] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=5.0117s, serve=5.0984s, path=6 hops
+[10:22:30.715] [t=   11.91] [DEBUG] [LatencyCollector] High queuing: flow=192, queue=2.7067s, serve=2.8282s, path=2 hops
+[10:22:30.715] [t=   11.91] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.3312s, serve=3.3680s, path=6 hops
+[10:22:30.715] [t=   12.01] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.3901s, serve=3.4232s, path=6 hops
+[10:22:30.715] [t=   12.01] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=2.6672s, serve=2.8488s, path=6 hops
+[10:22:30.715] [t=   12.11] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.4706s, serve=3.4992s, path=6 hops
+[10:22:30.715] [t=   12.11] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=5.1436s, serve=5.3320s, path=6 hops
+[10:22:30.715] [t=   12.11] [DEBUG] [LatencyCollector] High queuing: flow=187, queue=2.5516s, serve=2.6135s, path=6 hops
+[10:22:30.715] [t=   12.21] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.3375s, serve=3.3623s, path=6 hops
+[10:22:30.715] [t=   12.21] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=5.3035s, serve=5.3612s, path=6 hops
+[10:22:30.715] [t=   12.31] [DEBUG] [LatencyCollector] High queuing: flow=235, queue=3.3409s, serve=3.3538s, path=6 hops
+[10:22:30.715] [t=   12.31] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=5.2945s, serve=5.3055s, path=6 hops
+[10:22:30.717] [t=   12.41] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=5.3653s, serve=5.3795s, path=6 hops
+[10:22:30.717] [t=   12.51] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.8720s, serve=4.9619s, path=6 hops
+[10:22:30.717] [t=   12.61] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.8978s, serve=4.9199s, path=6 hops
+[10:22:30.717] [t=   12.71] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.8857s, serve=4.9671s, path=6 hops
+[10:22:30.717] [t=   12.81] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.9552s, serve=5.0243s, path=6 hops
+[10:22:30.717] [t=   12.91] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.7407s, serve=4.7556s, path=6 hops
+[10:22:30.717] [t=   13.01] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.7849s, serve=4.8135s, path=6 hops
+[10:22:30.717] [t=   13.11] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.3607s, serve=4.3731s, path=6 hops
+[10:22:30.717] [t=   13.21] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.2449s, serve=4.2564s, path=6 hops
+[10:22:30.717] [t=   13.31] [DEBUG] [LatencyCollector] High queuing: flow=188, queue=4.0086s, serve=4.0269s, path=6 hops
+[10:22:30.721] [t=    0.00] [INFO ] [TrainingRunner ] Simulation complete: 15.00 sim seconds, 2181 ms wall clock
+[10:22:30.721] [t=    0.00] [INFO ] [TrainingRunner ] Exporting results...
+[10:22:30.731] [t=    0.00] [INFO ] [LatencyCollector] Exported episode summary to testing_run1_baselinecomparisons\baseline_topk-queuing\ep_0063/episode_summary.json
+[10:22:30.742] [t=    0.00] [INFO ] [LatencyCollector] Exported flow summary to testing_run1_baselinecomparisons\baseline_topk-queuing\ep_0063/flow_summary.csv
+[10:22:30.745] [t=    0.00] [INFO ] [LinkStatsCollector] Exported 96 link stats to testing_run1_baselinecomparisons\baseline_topk-queuing\ep_0063/link_stats.csv
+[10:22:30.745] [t=    0.00] [INFO ] [SECTION        ] ======================================================================
+[10:22:30.745] [t=    0.00] [INFO ] [SECTION        ]   LATENCY STATISTICS SUMMARY
+[10:22:30.745] [t=    0.00] [INFO ] [SECTION        ] ======================================================================
+[10:22:30.745] [t=    0.00] [INFO ] [LatencyCollector] === Global Statistics ===
+[10:22:30.745] [t=    0.00] [INFO ] [LatencyCollector]   Total packets: 1991
+[10:22:30.745] [t=    0.00] [INFO ] [LatencyCollector]   Failed packets: 0
+[10:22:30.745] [t=    0.00] [INFO ] [LatencyCollector]   Avg queuing delay: 0.467889 s
+[10:22:30.745] [t=    0.00] [INFO ] [LatencyCollector]   Max queuing delay: 5.365298 s
+[10:22:30.745] [t=    0.00] [INFO ] [LatencyCollector] === Critical vs Background ===
+[10:22:30.745] [t=    0.00] [INFO ] [LatencyCollector]   Critical flows: 191 packets, avg queuing = 0.739383 s
+[10:22:30.745] [t=    0.00] [INFO ] [LatencyCollector]   Background flows: 1800 packets, avg queuing = 0.439080 s
+[10:22:30.745] [t=    0.00] [INFO ] [LinkStatsCollector] ========== Link Statistics Summary ==========
+[10:22:30.745] [t=    0.00] [INFO ] [LinkStatsCollector] Total links tracked: 96
+[10:22:30.745] [t=    0.00] [INFO ] [LinkStatsCollector] Episode duration: 10.00s
+[10:22:30.745] [t=    0.00] [INFO ] [LinkStatsCollector] Bottleneck link: Switch: e_3_0->h_3_0_1 (max_util=99.41%)
+[10:22:30.745] [t=    0.00] [INFO ] [LinkStatsCollector] Links that exceeded 90.0% utilization: 8
+[10:22:30.745] [t=    0.00] [INFO ] [LinkStatsCollector] Total congestion events: 8
+[10:22:30.745] [t=    0.00] [INFO ] [LinkStatsCollector] Top 5 most utilized links:
+[10:22:30.748] [t=    0.00] [INFO ] [LinkStatsCollector]   Switch: e_3_0->h_3_0_1: avg=72.87%, max=99.41%, events=1
+[10:22:30.748] [t=    0.00] [INFO ] [LinkStatsCollector]   Switch: e_2_1->h_2_1_0: avg=76.04%, max=98.88%, events=1
+[10:22:30.748] [t=    0.00] [INFO ] [LinkStatsCollector]   h_3_0_1->Switch: e_3_0: avg=65.39%, max=96.12%, events=1
+[10:22:30.748] [t=    0.00] [INFO ] [LinkStatsCollector]   h_3_0_0->Switch: e_3_0: avg=84.68%, max=95.32%, events=1
+[10:22:30.748] [t=    0.00] [INFO ] [LinkStatsCollector]   Switch: e_0_1->h_0_1_1: avg=62.28%, max=94.93%, events=1
+[10:22:30.748] [t=    0.00] [INFO ] [LinkPolicy     ] === ROUTING STATISTICS ===
+[10:22:30.748] [t=    0.00] [INFO ] [LinkPolicy     ] Total selectLink() calls: 47422
+[10:22:30.748] [t=    0.00] [INFO ] [LinkPolicy     ] Critical flow routings:   757
+[10:22:30.748] [t=    0.00] [INFO ] [LinkPolicy     ] Background flow routings: 14274
+[10:22:30.748] [t=    0.00] [INFO ] [LinkPolicy     ] Current critical flows:   [228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239]
+[10:22:30.748] [t=    0.00] [INFO ] [LinkPolicy     ] ==========================
+[10:22:30.748] [t=    0.00] [INFO ] [TrainingRunner ] === EPISODE COMPLETE ===
+[10:22:30.748] [t=    0.00] [INFO ] [TrainingRunner ] Output files:
+[10:22:30.748] [t=    0.00] [INFO ] [TrainingRunner ]   testing_run1_baselinecomparisons\baseline_topk-queuing\ep_0063/episode_summary.json
+[10:22:30.748] [t=    0.00] [INFO ] [TrainingRunner ]   testing_run1_baselinecomparisons\baseline_topk-queuing\ep_0063/flow_summary.csv
+[10:22:30.748] [t=    0.00] [INFO ] [TrainingRunner ]   testing_run1_baselinecomparisons\baseline_topk-queuing\ep_0063/link_stats.csv
+[10:22:30.748] [t=    0.00] [INFO ] [TrainingRunner ]   testing_run1_baselinecomparisons\baseline_topk-queuing\ep_0063/latency_results.csv
+
+================================================================================
+LOG ENDED: 2025-12-09 10:22:30
+================================================================================

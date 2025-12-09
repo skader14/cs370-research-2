@@ -76,6 +76,9 @@ class TrainingConfig:
     # Algorithm selection
     algorithm: str = 'ppo'                # 'ppo' or 'reinforce'
     
+    # Baseline evaluation mode
+    baseline: str = 'none'                # 'none', 'random', 'topk-demand', 'topk-queuing', 'ecmp'
+    
     # Common training settings
     learning_rate: float = 3e-4           # Policy learning rate
     baseline_decay: float = 0.99
@@ -202,6 +205,523 @@ class MetricsLogger:
 
 
 # =============================================================================
+# Baseline Selection Functions
+# =============================================================================
+
+def select_baseline_flows(baseline_type: str, k: int, demand_vector: np.ndarray = None,
+                          prev_queuing: np.ndarray = None, num_flows: int = NUM_FLOWS) -> list:
+    """
+    Select K critical flows using a baseline heuristic.
+    
+    Args:
+        baseline_type: One of 'random', 'topk-demand', 'topk-queuing', 'ecmp'
+        k: Number of flows to select
+        demand_vector: Traffic demand for each flow (required for topk-demand)
+        prev_queuing: Previous episode's queuing delay per flow (required for topk-queuing)
+        num_flows: Total number of flows
+        
+    Returns:
+        List of K flow indices
+    """
+    if baseline_type == 'ecmp':
+        # No critical flows - everything uses ECMP
+        return []
+    
+    elif baseline_type == 'random':
+        # Uniform random selection
+        return np.random.choice(num_flows, k, replace=False).tolist()
+    
+    elif baseline_type == 'topk-demand':
+        # Select K highest-demand flows
+        if demand_vector is None:
+            raise ValueError("topk-demand baseline requires demand_vector")
+        return np.argsort(demand_vector)[-k:].tolist()
+    
+    elif baseline_type == 'topk-queuing':
+        # Select K flows with highest previous queuing delay
+        if prev_queuing is None:
+            # Fall back to random if no history
+            return np.random.choice(num_flows, k, replace=False).tolist()
+        return np.argsort(prev_queuing)[-k:].tolist()
+    
+    else:
+        raise ValueError(f"Unknown baseline type: {baseline_type}")
+
+
+def select_trained_policy_flows(trainer, features_tensor: torch.Tensor, 
+                                 temperature: float = 0.15) -> list:
+    """
+    Select K critical flows using the trained policy network.
+    
+    Args:
+        trainer: CloudSimTrainer with loaded policy
+        features_tensor: Feature tensor for current state
+        temperature: Sampling temperature (use low for exploitation)
+        
+    Returns:
+        List of K flow indices
+    """
+    with torch.no_grad():
+        logits = trainer.policy(features_tensor)
+        selected_flows, _ = trainer.policy.sample_action(
+            logits,
+            k=trainer.config.k_critical,
+            temperature=temperature,
+        )
+    return selected_flows
+
+
+def run_single_episode_all_methods(trainer, workload_df, workload_path, episode_id: int,
+                                   methods: list, prev_queuing: np.ndarray = None,
+                                   temperature: float = 0.15) -> dict:
+    """
+    Run a single episode with all methods using the SAME workload.
+    
+    This ensures fair comparison by eliminating workload variance.
+    
+    Args:
+        trainer: CloudSimTrainer instance
+        workload_df: Workload DataFrame
+        workload_path: Path to saved workload file
+        episode_id: Episode identifier
+        methods: List of methods to evaluate ('trained', 'ecmp', 'random', etc.)
+        prev_queuing: Previous queuing delays for topk-queuing baseline
+        temperature: Temperature for trained policy sampling
+        
+    Returns:
+        Dictionary mapping method -> results
+    """
+    demand_vector = generate_demand_vector(workload_df)
+    
+    # Extract features for trained policy
+    features = trainer.feature_extractor.extract_features(demand_vector)
+    features_tensor = torch.FloatTensor(features).unsqueeze(0).to(trainer.device)
+    
+    results = {}
+    
+    for method in methods:
+        # Select flows based on method
+        if method == 'trained':
+            selected_flows = select_trained_policy_flows(
+                trainer, features_tensor, temperature
+            )
+        else:
+            selected_flows = select_baseline_flows(
+                baseline_type=method,
+                k=trainer.config.k_critical,
+                demand_vector=demand_vector,
+                prev_queuing=prev_queuing,
+                num_flows=trainer.config.num_flows,
+            )
+        
+        # Create output directory for this method
+        episode_dir = trainer.output_dir / f"baseline_{method}" / f"ep_{episode_id:04d}"
+        episode_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Run CloudSim episode
+        episode_results = trainer.episode_runner.run_episode(
+            workload_file=str(workload_path),
+            critical_flows=selected_flows,
+            output_dir=str(episode_dir),
+            episode_id=episode_id,
+        )
+        
+        trainer.episode_runner.cleanup_cloudsim_results()
+        
+        if not episode_results.get('success', False):
+            results[method] = {'success': False}
+            continue
+        
+        # Compute reward
+        episode_summary = episode_results.get('episode_summary', {})
+        
+        if trainer.config.use_dense_rewards:
+            dense_result = compute_dense_reward_from_results(
+                results=episode_results,
+                window_size=trainer.config.dense_window_size,
+                queuing_weight=trainer.config.queuing_weight,
+                drop_penalty=trainer.config.drop_penalty,
+                gamma=trainer.config.dense_gamma,
+                critical_only=trainer.config.dense_critical_only,
+            )
+            reward = dense_result.get('total_reward', 0)
+        else:
+            reward = compute_reward(
+                episode_summary=episode_summary,
+                queuing_weight=trainer.config.queuing_weight,
+                drop_penalty=trainer.config.drop_penalty,
+            )
+        
+        results[method] = {
+            'success': True,
+            'reward': reward,
+            'mean_queuing_ms': episode_summary.get('mean_queuing_delay_ms', 0),
+            'drop_rate': episode_summary.get('drop_rate', 0),
+            'selected_flows': selected_flows,
+            'flow_summary': episode_results.get('flow_summary'),
+        }
+    
+    return results
+
+
+def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: int = 100,
+                                  checkpoint_path: str = None) -> pd.DataFrame:
+    """
+    Run fair comparison where all methods are evaluated on the SAME workloads.
+    
+    This eliminates workload variance from the comparison, providing
+    a true apples-to-apples evaluation.
+    
+    Args:
+        trainer: CloudSimTrainer instance
+        methods: List of methods to compare (default: all including 'trained')
+        num_episodes: Number of episodes to run
+        checkpoint_path: Path to trained policy checkpoint (required for 'trained')
+        
+    Returns:
+        DataFrame with per-episode results for all methods
+    """
+    from scipy import stats
+    
+    if methods is None:
+        methods = ['trained', 'ecmp', 'random', 'topk-demand', 'topk-queuing']
+    
+    # Load checkpoint if evaluating trained policy
+    if 'trained' in methods and checkpoint_path:
+        trainer.load_checkpoint(checkpoint_path)
+        print(f"Loaded trained policy from: {checkpoint_path}")
+    elif 'trained' in methods:
+        print("Warning: No checkpoint provided, using current (possibly untrained) policy")
+    
+    print(f"\n{'='*70}")
+    print(f"FAIR BASELINE COMPARISON")
+    print(f"Methods: {', '.join(methods)}")
+    print(f"Episodes: {num_episodes}")
+    print(f"Same workload for all methods in each episode")
+    print(f"{'='*70}\n")
+    
+    # Store results per method
+    all_results = {method: {'rewards': [], 'queuing': [], 'drops': []} for method in methods}
+    
+    # Track prev_queuing for topk-queuing baseline (per method)
+    prev_queuing = {method: None for method in methods}
+    
+    for ep in range(num_episodes):
+        # Generate ONE workload for this episode
+        workload_df = generate_workload(
+            num_packets=trainer.config.packets_per_episode,
+            duration=trainer.config.episode_duration,
+            seed=None,
+            traffic_model=trainer.config.traffic_model,
+        )
+        
+        # Save workload (shared by all methods)
+        workload_dir = trainer.output_dir / "shared_workloads"
+        workload_dir.mkdir(parents=True, exist_ok=True)
+        workload_path = workload_dir / f"workload_ep_{ep:04d}.csv"
+        save_workload(workload_df, str(workload_path))
+        
+        # Run all methods on this workload
+        episode_results = run_single_episode_all_methods(
+            trainer=trainer,
+            workload_df=workload_df,
+            workload_path=workload_path,
+            episode_id=ep,
+            methods=methods,
+            prev_queuing=prev_queuing.get('topk-queuing'),
+            temperature=trainer.config.min_temperature,
+        )
+        
+        # Collect results and update prev_queuing
+        for method in methods:
+            result = episode_results.get(method, {})
+            if result.get('success', False):
+                all_results[method]['rewards'].append(result['reward'])
+                all_results[method]['queuing'].append(result['mean_queuing_ms'])
+                all_results[method]['drops'].append(result['drop_rate'])
+                
+                # Update prev_queuing from this method's results
+                flow_summary = result.get('flow_summary')
+                if flow_summary is not None and not flow_summary.empty:
+                    pq = np.zeros(NUM_FLOWS)
+                    for _, row in flow_summary.iterrows():
+                        flow_id = int(row.get('flow_id', -1))
+                        if 0 <= flow_id < NUM_FLOWS:
+                            pq[flow_id] = row.get('mean_queuing_ms', 0)
+                    prev_queuing[method] = pq
+        
+        # Progress update
+        if (ep + 1) % 10 == 0 or ep == 0:
+            status_parts = []
+            for method in methods:
+                if all_results[method]['rewards']:
+                    r = all_results[method]['rewards'][-1]
+                    status_parts.append(f"{method}={r:.2f}")
+            print(f"[Ep {ep+1:3d}/{num_episodes}] {', '.join(status_parts)}")
+    
+    # Compute statistics
+    print(f"\n{'='*70}")
+    print("RESULTS SUMMARY")
+    print(f"{'='*70}\n")
+    
+    summary_data = []
+    trained_rewards = all_results.get('trained', {}).get('rewards', [])
+    
+    for method in methods:
+        rewards = all_results[method]['rewards']
+        queuing = all_results[method]['queuing']
+        
+        if not rewards:
+            print(f"{method}: No successful episodes")
+            continue
+        
+        row = {
+            'Method': method.upper(),
+            'Episodes': len(rewards),
+            'Mean Reward': np.mean(rewards),
+            'Std Reward': np.std(rewards),
+            'Median Reward': np.median(rewards),
+            'Mean Queuing (ms)': np.mean(queuing),
+            'Std Queuing (ms)': np.std(queuing),
+        }
+        
+        # Compare to trained policy (if not the trained policy itself)
+        if method != 'trained' and trained_rewards:
+            # Paired t-test (same workloads!)
+            t_stat, p_value = stats.ttest_rel(trained_rewards[:len(rewards)], rewards)
+            improvement = (np.mean(trained_rewards) - np.mean(rewards)) / abs(np.mean(rewards)) * 100
+            
+            row['vs Trained (%)'] = improvement
+            row['p-value'] = p_value
+            row['Significant'] = 'YES' if p_value < 0.05 else 'no'
+            row['Trained Wins'] = sum(1 for t, b in zip(trained_rewards, rewards) if t > b)
+        else:
+            row['vs Trained (%)'] = 0.0
+            row['p-value'] = 1.0
+            row['Significant'] = '-'
+            row['Trained Wins'] = '-'
+        
+        summary_data.append(row)
+        
+        # Print per-method summary
+        print(f"{method.upper():15s}: R={np.mean(rewards):8.4f} ± {np.std(rewards):.4f}, "
+              f"Q={np.mean(queuing):7.1f}ms", end="")
+        if method != 'trained' and trained_rewards:
+            print(f"  | vs trained: {row['vs Trained (%)']:+.1f}% (p={row['p-value']:.4f})")
+        else:
+            print()
+    
+    # Create summary DataFrame
+    summary_df = pd.DataFrame(summary_data)
+    
+    # Create detailed per-episode DataFrame
+    detail_data = []
+    for ep in range(num_episodes):
+        row = {'episode': ep}
+        for method in methods:
+            rewards = all_results[method]['rewards']
+            queuing = all_results[method]['queuing']
+            if ep < len(rewards):
+                row[f'{method}_reward'] = rewards[ep]
+                row[f'{method}_queuing'] = queuing[ep]
+        detail_data.append(row)
+    
+    detail_df = pd.DataFrame(detail_data)
+    
+    # Print summary table
+    print(f"\n{'='*70}")
+    print("COMPARISON TABLE")
+    print(f"{'='*70}")
+    print(summary_df.to_string(index=False))
+    
+    # Win/loss analysis
+    if 'trained' in methods and len(trained_rewards) > 0:
+        print(f"\n{'='*70}")
+        print("HEAD-TO-HEAD ANALYSIS (Trained Policy vs Each Baseline)")
+        print(f"{'='*70}")
+        
+        for method in methods:
+            if method == 'trained':
+                continue
+            
+            rewards = all_results[method]['rewards']
+            n = min(len(trained_rewards), len(rewards))
+            
+            wins = sum(1 for t, b in zip(trained_rewards[:n], rewards[:n]) if t > b)
+            losses = sum(1 for t, b in zip(trained_rewards[:n], rewards[:n]) if t < b)
+            ties = n - wins - losses
+            
+            print(f"  vs {method:15s}: Trained wins {wins:3d}, loses {losses:3d}, ties {ties:3d} "
+                  f"({100*wins/n:.1f}% win rate)")
+    
+    return summary_df, detail_df
+
+
+def run_baseline_comparison(trainer, baselines: list = None, episodes_per_baseline: int = 100,
+                            trained_rewards: list = None) -> pd.DataFrame:
+    """
+    Legacy function - runs baselines independently (not on same workloads).
+    
+    For fair comparison, use run_fair_baseline_comparison() instead.
+    """
+    from scipy import stats
+    
+    print("\nWARNING: This runs baselines on different workloads.")
+    print("For fair comparison, use --baseline all with --checkpoint\n")
+    
+    if baselines is None:
+        baselines = ['ecmp', 'random', 'topk-demand', 'topk-queuing']
+    
+    all_results = []
+    
+    for baseline in baselines:
+        results = evaluate_baseline_legacy(
+            trainer=trainer,
+            baseline_type=baseline,
+            num_episodes=episodes_per_baseline,
+            use_dense_rewards=trainer.config.use_dense_rewards,
+        )
+        all_results.append(results)
+    
+    # Build comparison table
+    comparison_data = []
+    
+    for results in all_results:
+        row = {
+            'Method': results['baseline'],
+            'Mean Reward': results['mean_reward'],
+            'Std Reward': results['std_reward'],
+            'Mean Queuing (ms)': results['mean_queuing_ms'],
+        }
+        
+        if trained_rewards is not None:
+            t_stat, p_value = stats.ttest_ind(trained_rewards, results['rewards'])
+            improvement = (np.mean(trained_rewards) - results['mean_reward']) / abs(results['mean_reward']) * 100
+            row['vs Trained (%)'] = improvement
+            row['p-value'] = p_value
+            row['Significant'] = 'Yes' if p_value < 0.05 else 'No'
+        
+        comparison_data.append(row)
+    
+    if trained_rewards is not None:
+        trained_row = {
+            'Method': 'TRAINED POLICY',
+            'Mean Reward': np.mean(trained_rewards),
+            'Std Reward': np.std(trained_rewards),
+            'Mean Queuing (ms)': np.nan,
+            'vs Trained (%)': 0.0,
+            'p-value': 1.0,
+            'Significant': '-',
+        }
+        comparison_data.append(trained_row)
+    
+    df = pd.DataFrame(comparison_data)
+    
+    print("\n" + "="*70)
+    print("BASELINE COMPARISON SUMMARY")
+    print("="*70)
+    print(df.to_string(index=False))
+    
+    return df
+
+
+def evaluate_baseline_legacy(trainer, baseline_type: str, num_episodes: int = 100,
+                              use_dense_rewards: bool = True) -> dict:
+    """Legacy baseline evaluation (independent workloads)."""
+    
+    print(f"\n{'='*70}")
+    print(f"BASELINE EVALUATION: {baseline_type.upper()}")
+    print(f"{'='*70}")
+    
+    rewards = []
+    queuing_delays = []
+    drop_rates = []
+    prev_queuing = None
+    
+    for ep in range(num_episodes):
+        workload_df = generate_workload(
+            num_packets=trainer.config.packets_per_episode,
+            duration=trainer.config.episode_duration,
+            seed=None,
+            traffic_model=trainer.config.traffic_model,
+        )
+        
+        episode_dir = trainer.output_dir / f"baseline_{baseline_type}" / f"ep_{ep:04d}"
+        episode_dir.mkdir(parents=True, exist_ok=True)
+        workload_path = episode_dir / "workload.csv"
+        save_workload(workload_df, str(workload_path))
+        
+        demand_vector = generate_demand_vector(workload_df)
+        
+        selected_flows = select_baseline_flows(
+            baseline_type=baseline_type,
+            k=trainer.config.k_critical,
+            demand_vector=demand_vector,
+            prev_queuing=prev_queuing,
+            num_flows=trainer.config.num_flows,
+        )
+        
+        results = trainer.episode_runner.run_episode(
+            workload_file=str(workload_path),
+            critical_flows=selected_flows,
+            output_dir=str(episode_dir),
+            episode_id=ep,
+        )
+        
+        trainer.episode_runner.cleanup_cloudsim_results()
+        
+        if not results.get('success', False):
+            continue
+        
+        episode_summary = results.get('episode_summary', {})
+        
+        if use_dense_rewards:
+            dense_result = compute_dense_reward_from_results(
+                results=results,
+                window_size=trainer.config.dense_window_size,
+                queuing_weight=trainer.config.queuing_weight,
+                drop_penalty=trainer.config.drop_penalty,
+                gamma=trainer.config.dense_gamma,
+                critical_only=trainer.config.dense_critical_only,
+            )
+            reward = dense_result.get('total_reward', 0)
+        else:
+            reward = compute_reward(
+                episode_summary=episode_summary,
+                queuing_weight=trainer.config.queuing_weight,
+                drop_penalty=trainer.config.drop_penalty,
+            )
+        
+        rewards.append(reward)
+        queuing_delays.append(episode_summary.get('mean_queuing_delay_ms', 0))
+        drop_rates.append(episode_summary.get('drop_rate', 0))
+        
+        flow_summary = results.get('flow_summary')
+        if flow_summary is not None and not flow_summary.empty:
+            prev_queuing = np.zeros(NUM_FLOWS)
+            for _, row in flow_summary.iterrows():
+                flow_id = int(row.get('flow_id', -1))
+                if 0 <= flow_id < NUM_FLOWS:
+                    prev_queuing[flow_id] = row.get('mean_queuing_ms', 0)
+        
+        if (ep + 1) % 10 == 0:
+            print(f"  [{baseline_type}] Episode {ep+1}/{num_episodes}: "
+                  f"R={reward:.4f}, Q={queuing_delays[-1]:.1f}ms")
+    
+    return {
+        'baseline': baseline_type,
+        'num_episodes': len(rewards),
+        'mean_reward': np.mean(rewards),
+        'std_reward': np.std(rewards),
+        'median_reward': np.median(rewards),
+        'mean_queuing_ms': np.mean(queuing_delays),
+        'std_queuing_ms': np.std(queuing_delays),
+        'mean_drop_rate': np.mean(drop_rates),
+        'rewards': rewards,
+    }
+
+
+# =============================================================================
 # Main Trainer
 # =============================================================================
 
@@ -231,7 +751,7 @@ class CloudSimTrainer:
         else:
             self._init_reinforce(config)
         
-        self.feature_extractor = FeatureExtractor(random_cold_start=False)
+        self.feature_extractor = FeatureExtractor(random_cold_start=True)
         
         self.episode_runner = EpisodeRunner(
             cloudsim_dir=config.cloudsim_dir,
@@ -352,7 +872,9 @@ class CloudSimTrainer:
     
     def load_checkpoint(self, path: str) -> None:
         """Load training checkpoint."""
-        checkpoint = torch.load(path, map_location=self.device)
+        # weights_only=False needed for PyTorch 2.6+ (changed default)
+        # Safe here since we're loading our own checkpoint files
+        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
         
         saved_algo = checkpoint.get('algorithm', 'reinforce')
         if saved_algo != self.config.algorithm:
@@ -716,6 +1238,17 @@ def main():
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--eval-only", action="store_true")
     
+    # Baseline evaluation
+    parser.add_argument("--baseline", type=str, default=None,
+                       choices=['ecmp', 'random', 'topk-demand', 'topk-queuing', 'all'],
+                       help="Run baseline evaluation instead of training")
+    parser.add_argument("--baseline-episodes", type=int, default=100,
+                       help="Number of episodes per baseline evaluation")
+    parser.add_argument("--compare-trained", type=str, default=None,
+                       help="Path to training_metrics.csv to compare baselines against (legacy mode)")
+    parser.add_argument("--checkpoint", type=str, default=None,
+                       help="Path to trained policy checkpoint for fair comparison")
+    
     args = parser.parse_args()
     
     config = TrainingConfig(
@@ -756,6 +1289,60 @@ def main():
         print(f"  Mean reward: {stats['mean_reward']:.4f} ± {stats['std_reward']:.4f}")
         print(f"  Mean queuing: {stats['mean_queuing_ms']:.2f} ms")
         print(f"  Mean drop rate: {stats['mean_drop_rate']:.4f}")
+        return
+    
+    # Baseline evaluation mode
+    if args.baseline:
+        # Determine which methods to evaluate
+        if args.baseline == 'all':
+            methods = ['ecmp', 'random', 'topk-demand', 'topk-queuing']
+            if args.checkpoint:
+                methods = ['trained'] + methods  # Add trained policy if checkpoint provided
+        else:
+            methods = [args.baseline]
+            if args.checkpoint:
+                methods = ['trained'] + methods
+        
+        # Use fair comparison (same workloads) if checkpoint provided
+        if args.checkpoint:
+            summary_df, detail_df = run_fair_baseline_comparison(
+                trainer=trainer,
+                methods=methods,
+                num_episodes=args.baseline_episodes,
+                checkpoint_path=args.checkpoint,
+            )
+            
+            # Save results
+            summary_path = trainer.output_dir / "baseline_comparison_summary.csv"
+            detail_path = trainer.output_dir / "baseline_comparison_detail.csv"
+            summary_df.to_csv(summary_path, index=False)
+            detail_df.to_csv(detail_path, index=False)
+            print(f"\nSummary saved to: {summary_path}")
+            print(f"Details saved to: {detail_path}")
+        
+        else:
+            # Legacy mode: different workloads, compare to historical metrics
+            trained_rewards = None
+            if args.compare_trained:
+                try:
+                    trained_df = pd.read_csv(args.compare_trained)
+                    n_compare = min(100, len(trained_df))
+                    trained_rewards = trained_df['reward'].tail(n_compare).tolist()
+                    print(f"Loaded {n_compare} episodes from trained policy for comparison")
+                except Exception as e:
+                    print(f"Warning: Could not load trained metrics: {e}")
+            
+            comparison_df = run_baseline_comparison(
+                trainer=trainer,
+                baselines=methods,
+                episodes_per_baseline=args.baseline_episodes,
+                trained_rewards=trained_rewards,
+            )
+            
+            results_path = trainer.output_dir / "baseline_comparison.csv"
+            comparison_df.to_csv(results_path, index=False)
+            print(f"\nResults saved to: {results_path}")
+        
         return
     
     start_ep = trainer.episode if args.resume else 0
