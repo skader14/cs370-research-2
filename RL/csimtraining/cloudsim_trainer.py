@@ -214,18 +214,23 @@ def select_baseline_flows(baseline_type: str, k: int, demand_vector: np.ndarray 
     Select K critical flows using a baseline heuristic.
     
     Args:
-        baseline_type: One of 'random', 'topk-demand', 'topk-queuing', 'ecmp'
-        k: Number of flows to select
+        baseline_type: One of 'random', 'topk-demand', 'topk-queuing', 'ecmp', 'all-critical'
+        k: Number of flows to select (ignored for 'ecmp' and 'all-critical')
         demand_vector: Traffic demand for each flow (required for topk-demand)
         prev_queuing: Previous episode's queuing delay per flow (required for topk-queuing)
         num_flows: Total number of flows
         
     Returns:
-        List of K flow indices
+        List of flow indices
     """
     if baseline_type == 'ecmp':
         # No critical flows - everything uses ECMP
         return []
+    
+    elif baseline_type == 'all-critical':
+        # ALL flows are critical - theoretical upper bound
+        # This is what full TE optimization would do
+        return list(range(num_flows))
     
     elif baseline_type == 'random':
         # Uniform random selection
@@ -246,6 +251,72 @@ def select_baseline_flows(baseline_type: str, k: int, demand_vector: np.ndarray 
     
     else:
         raise ValueError(f"Unknown baseline type: {baseline_type}")
+
+
+def compute_flow_overlap(flows_a: list, flows_b: list) -> dict:
+    """
+    Compute overlap between two flow selections.
+    
+    Returns:
+        Dictionary with overlap metrics
+    """
+    set_a = set(flows_a)
+    set_b = set(flows_b)
+    
+    intersection = set_a & set_b
+    union = set_a | set_b
+    
+    return {
+        'overlap_count': len(intersection),
+        'overlap_pct': len(intersection) / max(len(set_a), 1) * 100,
+        'jaccard': len(intersection) / max(len(union), 1),
+        'only_in_a': len(set_a - set_b),
+        'only_in_b': len(set_b - set_a),
+    }
+
+
+def compute_network_disturbance(selected_flows: list, prev_selected_flows: list,
+                                 demand_vector: np.ndarray = None) -> dict:
+    """
+    Compute network disturbance metrics.
+    
+    Zhang et al.'s key insight: minimize disturbance while achieving near-optimal performance.
+    
+    Args:
+        selected_flows: Currently selected critical flows
+        prev_selected_flows: Previously selected critical flows
+        demand_vector: Traffic demand per flow (for traffic-weighted metrics)
+        
+    Returns:
+        Dictionary with disturbance metrics
+    """
+    curr_set = set(selected_flows)
+    prev_set = set(prev_selected_flows) if prev_selected_flows else set()
+    
+    # Flows that changed status
+    newly_critical = curr_set - prev_set  # Were ECMP, now critical
+    no_longer_critical = prev_set - curr_set  # Were critical, now ECMP
+    
+    # Basic disturbance metrics
+    disturbance = {
+        'num_critical': len(selected_flows),
+        'num_changes': len(newly_critical) + len(no_longer_critical),
+        'newly_critical': len(newly_critical),
+        'no_longer_critical': len(no_longer_critical),
+        'stability_pct': len(curr_set & prev_set) / max(len(curr_set), 1) * 100 if curr_set else 100,
+    }
+    
+    # Traffic-weighted disturbance (if demand available)
+    if demand_vector is not None and len(demand_vector) > 0:
+        total_demand = np.sum(demand_vector)
+        critical_demand = sum(demand_vector[f] for f in selected_flows if f < len(demand_vector))
+        changed_demand = sum(demand_vector[f] for f in (newly_critical | no_longer_critical) 
+                            if f < len(demand_vector))
+        
+        disturbance['critical_traffic_pct'] = critical_demand / max(total_demand, 1) * 100
+        disturbance['changed_traffic_pct'] = changed_demand / max(total_demand, 1) * 100
+    
+    return disturbance
 
 
 def select_trained_policy_flows(trainer, features_tensor: torch.Tensor, 
@@ -273,7 +344,9 @@ def select_trained_policy_flows(trainer, features_tensor: torch.Tensor,
 
 def run_single_episode_all_methods(trainer, workload_df, workload_path, episode_id: int,
                                    methods: list, prev_queuing: np.ndarray = None,
-                                   temperature: float = 0.15) -> dict:
+                                   prev_selected: dict = None,
+                                   temperature: float = 0.15,
+                                   save_episode: bool = False) -> dict:
     """
     Run a single episode with all methods using the SAME workload.
     
@@ -286,16 +359,31 @@ def run_single_episode_all_methods(trainer, workload_df, workload_path, episode_
         episode_id: Episode identifier
         methods: List of methods to evaluate ('trained', 'ecmp', 'random', etc.)
         prev_queuing: Previous queuing delays for topk-queuing baseline
+        prev_selected: Dict mapping method -> previous flow selection (for disturbance)
         temperature: Temperature for trained policy sampling
+        save_episode: Whether to save episode outputs (default: False)
         
     Returns:
         Dictionary mapping method -> results
     """
     demand_vector = generate_demand_vector(workload_df)
+    total_demand = np.sum(demand_vector)
     
     # Extract features for trained policy
     features = trainer.feature_extractor.extract_features(demand_vector)
     features_tensor = torch.FloatTensor(features).unsqueeze(0).to(trainer.device)
+    
+    # Get top-k queuing selection for overlap comparison
+    if prev_queuing is not None:
+        topk_q_flows = np.argsort(prev_queuing)[-trainer.config.k_critical:].tolist()
+    else:
+        topk_q_flows = []
+    
+    # Get top-k demand selection for overlap comparison
+    topk_d_flows = np.argsort(demand_vector)[-trainer.config.k_critical:].tolist()
+    
+    if prev_selected is None:
+        prev_selected = {}
     
     results = {}
     
@@ -314,9 +402,14 @@ def run_single_episode_all_methods(trainer, workload_df, workload_path, episode_
                 num_flows=trainer.config.num_flows,
             )
         
-        # Create output directory for this method
-        episode_dir = trainer.output_dir / f"baseline_{method}" / f"ep_{episode_id:04d}"
-        episode_dir.mkdir(parents=True, exist_ok=True)
+        # Create output directory - only if saving this episode
+        if save_episode:
+            episode_dir = trainer.output_dir / f"baseline_{method}" / f"ep_{episode_id:04d}"
+            episode_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            # Use temp directory, will be cleaned up
+            episode_dir = trainer.output_dir / "temp_episode"
+            episode_dir.mkdir(parents=True, exist_ok=True)
         
         # Run CloudSim episode
         episode_results = trainer.episode_runner.run_episode(
@@ -329,10 +422,15 @@ def run_single_episode_all_methods(trainer, workload_df, workload_path, episode_
         trainer.episode_runner.cleanup_cloudsim_results()
         
         if not episode_results.get('success', False):
+            # Clean up temp directory on failure
+            if not save_episode:
+                import shutil
+                if episode_dir.exists():
+                    shutil.rmtree(episode_dir)
             results[method] = {'success': False}
             continue
         
-        # Compute reward
+        # Compute reward BEFORE cleaning up temp directory
         episode_summary = episode_results.get('episode_summary', {})
         
         if trainer.config.use_dense_rewards:
@@ -352,20 +450,47 @@ def run_single_episode_all_methods(trainer, workload_df, workload_path, episode_
                 drop_penalty=trainer.config.drop_penalty,
             )
         
+        # NOW clean up temp directory (after reading results)
+        if not save_episode:
+            import shutil
+            if episode_dir.exists():
+                shutil.rmtree(episode_dir)
+        
+        # Compute overlap with heuristics (only meaningful for trained policy)
+        overlap_topk_q = compute_flow_overlap(selected_flows, topk_q_flows) if topk_q_flows else {}
+        overlap_topk_d = compute_flow_overlap(selected_flows, topk_d_flows)
+        
+        # Compute traffic-weighted disturbance
+        # Key metric: What % of total traffic is affected by critical flow selection?
+        critical_demand = sum(demand_vector[f] for f in selected_flows if f < len(demand_vector))
+        critical_traffic_pct = (critical_demand / max(total_demand, 1)) * 100
+        
+        # Selection churn: How many flows changed from last episode?
+        prev_flows = set(prev_selected.get(method, []))
+        curr_flows = set(selected_flows)
+        churn = len(prev_flows.symmetric_difference(curr_flows))  # Flows added + flows removed
+        
         results[method] = {
             'success': True,
             'reward': reward,
             'mean_queuing_ms': episode_summary.get('mean_queuing_delay_ms', 0),
+            'max_queuing_ms': episode_summary.get('max_queuing_delay_ms', 0),
             'drop_rate': episode_summary.get('drop_rate', 0),
             'selected_flows': selected_flows,
             'flow_summary': episode_results.get('flow_summary'),
+            # Overlap metrics
+            'overlap_topk_queuing': overlap_topk_q.get('overlap_count', 0),
+            'overlap_topk_demand': overlap_topk_d.get('overlap_count', 0),
+            # Disturbance metrics
+            'critical_traffic_pct': critical_traffic_pct,  # % of traffic affected
+            'selection_churn': churn,  # How many flows changed status
         }
     
     return results
 
 
 def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: int = 100,
-                                  checkpoint_path: str = None) -> pd.DataFrame:
+                                  checkpoint_path: str = None, save_freq: int = 50) -> pd.DataFrame:
     """
     Run fair comparison where all methods are evaluated on the SAME workloads.
     
@@ -374,9 +499,10 @@ def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: in
     
     Args:
         trainer: CloudSimTrainer instance
-        methods: List of methods to compare (default: all including 'trained')
+        methods: List of methods to compare (default: all including 'trained' and 'all-critical')
         num_episodes: Number of episodes to run
         checkpoint_path: Path to trained policy checkpoint (required for 'trained')
+        save_freq: Save episode outputs every N episodes (default: 50)
         
     Returns:
         DataFrame with per-episode results for all methods
@@ -384,7 +510,7 @@ def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: in
     from scipy import stats
     
     if methods is None:
-        methods = ['trained', 'ecmp', 'random', 'topk-demand', 'topk-queuing']
+        methods = ['trained', 'ecmp', 'random', 'topk-demand', 'topk-queuing', 'all-critical']
     
     # Load checkpoint if evaluating trained policy
     if 'trained' in methods and checkpoint_path:
@@ -398,15 +524,25 @@ def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: in
     print(f"Methods: {', '.join(methods)}")
     print(f"Episodes: {num_episodes}")
     print(f"Same workload for all methods in each episode")
+    print(f"Saving episode outputs every {save_freq} episodes")
     print(f"{'='*70}\n")
     
-    # Store results per method
-    all_results = {method: {'rewards': [], 'queuing': [], 'drops': []} for method in methods}
+    # Store results per method - simplified metrics
+    all_results = {method: {
+        'rewards': [], 'queuing': [], 'max_queuing': [], 'drops': [],
+        'overlap_topk_q': [], 'overlap_topk_d': [],
+        'critical_traffic_pct': [], 'selection_churn': [],
+    } for method in methods}
     
-    # Track prev_queuing for topk-queuing baseline (per method)
+    # Track prev_queuing for topk-queuing baseline
     prev_queuing = {method: None for method in methods}
+    # Track previous selections for churn calculation
+    prev_selected = {method: [] for method in methods}
     
     for ep in range(num_episodes):
+        # Determine if we should save this episode
+        save_episode = (ep % save_freq == 0) or (ep == num_episodes - 1)
+        
         # Generate ONE workload for this episode
         workload_df = generate_workload(
             num_packets=trainer.config.packets_per_episode,
@@ -415,10 +551,13 @@ def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: in
             traffic_model=trainer.config.traffic_model,
         )
         
-        # Save workload (shared by all methods)
+        # Save workload only for saved episodes
         workload_dir = trainer.output_dir / "shared_workloads"
         workload_dir.mkdir(parents=True, exist_ok=True)
-        workload_path = workload_dir / f"workload_ep_{ep:04d}.csv"
+        if save_episode:
+            workload_path = workload_dir / f"workload_ep_{ep:04d}.csv"
+        else:
+            workload_path = workload_dir / "temp_workload.csv"
         save_workload(workload_df, str(workload_path))
         
         # Run all methods on this workload
@@ -429,16 +568,26 @@ def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: in
             episode_id=ep,
             methods=methods,
             prev_queuing=prev_queuing.get('topk-queuing'),
+            prev_selected=prev_selected,
             temperature=trainer.config.min_temperature,
+            save_episode=save_episode,
         )
         
-        # Collect results and update prev_queuing
+        # Collect results and update tracking
         for method in methods:
             result = episode_results.get(method, {})
             if result.get('success', False):
                 all_results[method]['rewards'].append(result['reward'])
                 all_results[method]['queuing'].append(result['mean_queuing_ms'])
+                all_results[method]['max_queuing'].append(result.get('max_queuing_ms', 0))
                 all_results[method]['drops'].append(result['drop_rate'])
+                all_results[method]['overlap_topk_q'].append(result.get('overlap_topk_queuing', 0))
+                all_results[method]['overlap_topk_d'].append(result.get('overlap_topk_demand', 0))
+                all_results[method]['critical_traffic_pct'].append(result.get('critical_traffic_pct', 0))
+                all_results[method]['selection_churn'].append(result.get('selection_churn', 0))
+                
+                # Update previous selection for churn tracking
+                prev_selected[method] = result.get('selected_flows', [])
                 
                 # Update prev_queuing from this method's results
                 flow_summary = result.get('flow_summary')
@@ -453,10 +602,10 @@ def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: in
         # Progress update
         if (ep + 1) % 10 == 0 or ep == 0:
             status_parts = []
-            for method in methods:
+            for method in methods[:4]:  # Show first 4 methods
                 if all_results[method]['rewards']:
                     r = all_results[method]['rewards'][-1]
-                    status_parts.append(f"{method}={r:.2f}")
+                    status_parts.append(f"{method}={r:.1f}")
             print(f"[Ep {ep+1:3d}/{num_episodes}] {', '.join(status_parts)}")
     
     # Compute statistics
@@ -466,6 +615,17 @@ def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: in
     
     summary_data = []
     trained_rewards = all_results.get('trained', {}).get('rewards', [])
+    all_critical_rewards = all_results.get('all-critical', {}).get('rewards', [])
+    
+    # K values by method type
+    k_by_method = {
+        'ecmp': 0,
+        'random': trainer.config.k_critical,
+        'topk-demand': trainer.config.k_critical,
+        'topk-queuing': trainer.config.k_critical,
+        'trained': trainer.config.k_critical,
+        'all-critical': trainer.config.num_flows,
+    }
     
     for method in methods:
         rewards = all_results[method]['rewards']
@@ -475,41 +635,67 @@ def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: in
             print(f"{method}: No successful episodes")
             continue
         
+        k_val = k_by_method.get(method, trainer.config.k_critical)
+        
         row = {
             'Method': method.upper(),
+            'K': k_val,
             'Episodes': len(rewards),
             'Mean Reward': np.mean(rewards),
             'Std Reward': np.std(rewards),
             'Median Reward': np.median(rewards),
             'Mean Queuing (ms)': np.mean(queuing),
-            'Std Queuing (ms)': np.std(queuing),
         }
         
-        # Compare to trained policy (if not the trained policy itself)
+        # Traffic affected (only meaningful for K > 0)
+        if all_results[method]['critical_traffic_pct'] and k_val > 0:
+            row['Traffic Affected %'] = np.mean(all_results[method]['critical_traffic_pct'])
+        
+        # Selection churn (average flows changed per episode)
+        if all_results[method]['selection_churn']:
+            row['Avg Churn/Ep'] = np.mean(all_results[method]['selection_churn'])
+        
+        # Overlap with top-k heuristics (for trained policy)
+        if method == 'trained' and all_results[method]['overlap_topk_q']:
+            row['Overlap TopK-Q'] = f"{np.mean(all_results[method]['overlap_topk_q']):.1f}/{k_val}"
+            row['Overlap TopK-D'] = f"{np.mean(all_results[method]['overlap_topk_d']):.1f}/{k_val}"
+        
+        # Compare to trained policy
         if method != 'trained' and trained_rewards:
-            # Paired t-test (same workloads!)
-            t_stat, p_value = stats.ttest_rel(trained_rewards[:len(rewards)], rewards)
+            n = min(len(trained_rewards), len(rewards))
+            t_stat, p_value = stats.ttest_rel(trained_rewards[:n], rewards[:n])
             improvement = (np.mean(trained_rewards) - np.mean(rewards)) / abs(np.mean(rewards)) * 100
             
             row['vs Trained (%)'] = improvement
             row['p-value'] = p_value
             row['Significant'] = 'YES' if p_value < 0.05 else 'no'
-            row['Trained Wins'] = sum(1 for t, b in zip(trained_rewards, rewards) if t > b)
-        else:
-            row['vs Trained (%)'] = 0.0
-            row['p-value'] = 1.0
-            row['Significant'] = '-'
-            row['Trained Wins'] = '-'
+            row['Trained Wins'] = sum(1 for t, b in zip(trained_rewards[:n], rewards[:n]) if t > b)
+        
+        # Compare to all-critical (theoretical best)
+        if method != 'all-critical' and all_critical_rewards:
+            n = min(len(all_critical_rewards), len(rewards))
+            improvement_vs_all = (np.mean(rewards) - np.mean(all_critical_rewards)) / abs(np.mean(all_critical_rewards)) * 100
+            row['vs All-Crit (%)'] = improvement_vs_all
+            # How much of the gap to all-critical does this method close?
+            ecmp_rewards = all_results.get('ecmp', {}).get('rewards', [])
+            if ecmp_rewards:
+                ecmp_mean = np.mean(ecmp_rewards)
+                all_crit_mean = np.mean(all_critical_rewards)
+                method_mean = np.mean(rewards)
+                if ecmp_mean != all_crit_mean:
+                    gap_closed = (ecmp_mean - method_mean) / (ecmp_mean - all_crit_mean) * 100
+                    row['Gap Closed %'] = gap_closed
         
         summary_data.append(row)
         
         # Print per-method summary
-        print(f"{method.upper():15s}: R={np.mean(rewards):8.4f} ± {np.std(rewards):.4f}, "
-              f"Q={np.mean(queuing):7.1f}ms", end="")
+        print(f"{method.upper():15s}: R={np.mean(rewards):8.2f} ± {np.std(rewards):.2f}, "
+              f"Q={np.mean(queuing):7.1f}ms  K={k_val:3d}", end="")
         if method != 'trained' and trained_rewards:
-            print(f"  | vs trained: {row['vs Trained (%)']:+.1f}% (p={row['p-value']:.4f})")
-        else:
-            print()
+            print(f"  | vs trained: {row.get('vs Trained (%)', 0):+.1f}%", end="")
+        if method != 'all-critical' and all_critical_rewards:
+            print(f"  | gap closed: {row.get('Gap Closed %', 0):.0f}%", end="")
+        print()
     
     # Create summary DataFrame
     summary_df = pd.DataFrame(summary_data)
@@ -519,11 +705,12 @@ def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: in
     for ep in range(num_episodes):
         row = {'episode': ep}
         for method in methods:
-            rewards = all_results[method]['rewards']
-            queuing = all_results[method]['queuing']
-            if ep < len(rewards):
-                row[f'{method}_reward'] = rewards[ep]
-                row[f'{method}_queuing'] = queuing[ep]
+            if ep < len(all_results[method]['rewards']):
+                row[f'{method}_reward'] = all_results[method]['rewards'][ep]
+                row[f'{method}_queuing'] = all_results[method]['queuing'][ep]
+                if method == 'trained':
+                    row[f'{method}_overlap_topk_q'] = all_results[method]['overlap_topk_q'][ep]
+                    row[f'{method}_overlap_topk_d'] = all_results[method]['overlap_topk_d'][ep]
         detail_data.append(row)
     
     detail_df = pd.DataFrame(detail_data)
@@ -534,10 +721,36 @@ def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: in
     print(f"{'='*70}")
     print(summary_df.to_string(index=False))
     
-    # Win/loss analysis
+    # Zhang et al. analysis: Is K-selection worth it?
+    print(f"\n{'='*70}")
+    print("ZHANG ET AL. ANALYSIS: Is K-selection worth the constraint?")
+    print(f"{'='*70}")
+    
+    if all_critical_rewards and trained_rewards:
+        all_crit_mean = np.mean(all_critical_rewards)
+        trained_mean = np.mean(trained_rewards)
+        ecmp_mean = np.mean(all_results.get('ecmp', {}).get('rewards', [0]))
+        
+        # Performance retention
+        if ecmp_mean != all_crit_mean:
+            trained_retention = (ecmp_mean - trained_mean) / (ecmp_mean - all_crit_mean) * 100
+            print(f"\n  ECMP (K=0):           R={ecmp_mean:8.2f} (baseline, no rerouting)")
+            print(f"  All-Critical (K=240): R={all_crit_mean:8.2f} (theoretical best, full TE)")
+            print(f"  Trained (K=12):       R={trained_mean:8.2f}")
+            print(f"\n  Performance retained: {trained_retention:.1f}% of full TE improvement")
+            print(f"  Network disturbance:  {12/240*100:.1f}% of flows rerouted (12/240)")
+            
+            if trained_retention > 80:
+                print(f"\n  ✓ VALIDATES Zhang et al.: {trained_retention:.0f}% performance with only 5% disturbance!")
+            elif trained_retention > 50:
+                print(f"\n  ~ PARTIAL: {trained_retention:.0f}% performance, may need more training or larger K")
+            else:
+                print(f"\n  ✗ K=12 may be insufficient for latency optimization")
+    
+    # Head-to-head analysis
     if 'trained' in methods and len(trained_rewards) > 0:
         print(f"\n{'='*70}")
-        print("HEAD-TO-HEAD ANALYSIS (Trained Policy vs Each Baseline)")
+        print("HEAD-TO-HEAD ANALYSIS")
         print(f"{'='*70}")
         
         for method in methods:
@@ -551,8 +764,27 @@ def run_fair_baseline_comparison(trainer, methods: list = None, num_episodes: in
             losses = sum(1 for t, b in zip(trained_rewards[:n], rewards[:n]) if t < b)
             ties = n - wins - losses
             
-            print(f"  vs {method:15s}: Trained wins {wins:3d}, loses {losses:3d}, ties {ties:3d} "
-                  f"({100*wins/n:.1f}% win rate)")
+            print(f"  Trained vs {method:15s}: wins {wins:3d}, loses {losses:3d}, ties {ties:3d} "
+                  f"({100*wins/n:.0f}% win rate)")
+    
+    # Overlap analysis for trained policy
+    if 'trained' in methods and all_results['trained']['overlap_topk_q']:
+        print(f"\n{'='*70}")
+        print("TRAINED POLICY OVERLAP ANALYSIS")
+        print(f"{'='*70}")
+        overlap_q = all_results['trained']['overlap_topk_q']
+        overlap_d = all_results['trained']['overlap_topk_d']
+        print(f"  Overlap with Top-K Queuing: {np.mean(overlap_q):.1f}/12 "
+              f"(min={min(overlap_q)}, max={max(overlap_q)})")
+        print(f"  Overlap with Top-K Demand:  {np.mean(overlap_d):.1f}/12 "
+              f"(min={min(overlap_d)}, max={max(overlap_d)})")
+        
+        if np.mean(overlap_q) > 10:
+            print(f"\n  ⚠️ High overlap with Top-K Queuing - policy may be copying heuristic")
+        elif np.mean(overlap_q) < 6:
+            print(f"\n  ✓ Low overlap - policy found different strategy than Top-K Queuing")
+        else:
+            print(f"\n  ~ Moderate overlap - policy partially diverged from heuristic")
     
     return summary_df, detail_df
 
@@ -1240,7 +1472,7 @@ def main():
     
     # Baseline evaluation
     parser.add_argument("--baseline", type=str, default=None,
-                       choices=['ecmp', 'random', 'topk-demand', 'topk-queuing', 'all'],
+                       choices=['ecmp', 'random', 'topk-demand', 'topk-queuing', 'all-critical', 'all'],
                        help="Run baseline evaluation instead of training")
     parser.add_argument("--baseline-episodes", type=int, default=100,
                        help="Number of episodes per baseline evaluation")
@@ -1295,7 +1527,7 @@ def main():
     if args.baseline:
         # Determine which methods to evaluate
         if args.baseline == 'all':
-            methods = ['ecmp', 'random', 'topk-demand', 'topk-queuing']
+            methods = ['ecmp', 'random', 'topk-demand', 'topk-queuing', 'all-critical']
             if args.checkpoint:
                 methods = ['trained'] + methods  # Add trained policy if checkpoint provided
         else:
