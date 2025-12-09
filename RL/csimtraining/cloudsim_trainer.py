@@ -2,16 +2,21 @@
 cloudsim_trainer.py - Main training loop for CloudSim-in-the-loop RL.
 
 Updated for Fat-Tree topology (16 hosts, 240 flows).
+Now supports both REINFORCE and PPO algorithms.
 
 This script:
 1. Generates random workloads for each episode
 2. Uses the policy network to select K critical flows
 3. Runs CloudSim as a subprocess
 4. Reads results and computes reward
-5. Updates policy using REINFORCE
+5. Updates policy using PPO (default) or REINFORCE
 
 Usage:
+    # PPO training (recommended)
     python cloudsim_trainer.py --episodes 500 --cloudsim-dir /path/to/cloudsimsdn
+    
+    # REINFORCE training (for comparison)
+    python cloudsim_trainer.py --episodes 500 --algorithm reinforce --cloudsim-dir /path/to/cloudsimsdn
 
     # Resume from checkpoint
     python cloudsim_trainer.py --resume checkpoints/latest.pt
@@ -33,7 +38,10 @@ from workload_generator import (
 )
 from episode_runner import EpisodeRunner, compute_reward
 from feature_extractor import FeatureExtractor
-from policy_network import PolicyNetwork, BatchReinforceTrainer
+from policy_network import (
+    PolicyNetwork, ValueNetwork, PPOTrainer, BatchReinforceTrainer,
+    create_ppo_networks
+)
 
 
 # =============================================================================
@@ -58,16 +66,29 @@ class TrainingConfig:
     flow_selection: str = 'balanced'      # 'balanced', 'inter_pod', 'all' (legacy)
     traffic_model: str = 'hotspot'        # 'uniform', 'hotspot', 'gravity', 'skewed'
     
-    # Training settings
-    learning_rate: float = 3e-4           # Increased for batch updates
+    # Algorithm selection
+    algorithm: str = 'ppo'                # 'ppo' or 'reinforce'
+    
+    # Common training settings
+    learning_rate: float = 3e-4           # Policy learning rate
     baseline_decay: float = 0.99
     entropy_weight: float = 0.01
     max_grad_norm: float = 0.5
     
     # Batch training settings
     batch_size: int = 10                  # Episodes per batch update
-    num_updates_per_batch: int = 3        # Gradient steps per batch
     normalize_advantages: bool = True
+    
+    # PPO-specific settings
+    lr_value: float = 1e-3                # Value network learning rate (higher than policy)
+    ppo_epochs: int = 4                   # Gradient updates per batch
+    clip_epsilon: float = 0.2             # PPO clipping parameter
+    value_loss_coef: float = 0.5          # Weight for value loss
+    gae_lambda: float = 0.95              # GAE lambda
+    target_kl: float = 0.02               # KL early stopping threshold (None to disable)
+    
+    # REINFORCE-specific settings (for comparison)
+    num_updates_per_batch: int = 3        # Gradient steps per batch
     
     # Temperature schedule
     temperature_start: float = 1.0
@@ -108,17 +129,22 @@ class TrainingConfig:
 class MetricsLogger:
     """Log training metrics to CSV and console."""
     
-    def __init__(self, output_dir: str):
+    def __init__(self, output_dir: str, algorithm: str = 'ppo'):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.algorithm = algorithm
         
         self.csv_path = self.output_dir / "training_metrics.csv"
         self.metrics_buffer = []
         
-        # Write header
+        # Write header (PPO has additional columns)
+        header = (
+            "episode,timestamp,reward,mean_queuing_ms,drop_rate,loss,"
+            "policy_loss,value_loss,entropy,kl_div,baseline,"
+            "temperature,wall_time_ms,packets,active_flows\n"
+        )
         with open(self.csv_path, 'w') as f:
-            f.write("episode,timestamp,reward,mean_queuing_ms,drop_rate,loss,baseline,"
-                   "temperature,wall_time_ms,packets,active_flows\n")
+            f.write(header)
     
     def log(self, episode: int, metrics: dict) -> None:
         """Log metrics for one episode."""
@@ -127,7 +153,10 @@ class MetricsLogger:
         row = (
             f"{episode},{timestamp},{metrics.get('reward', 0):.6f},"
             f"{metrics.get('mean_queuing_ms', 0):.4f},{metrics.get('drop_rate', 0):.6f},"
-            f"{metrics.get('loss', 0):.6f},{metrics.get('baseline', 0):.6f},"
+            f"{metrics.get('loss', 0):.6f},"
+            f"{metrics.get('policy_loss', 0):.6f},{metrics.get('value_loss', 0):.6f},"
+            f"{metrics.get('entropy', 0):.6f},{metrics.get('kl_divergence', 0):.6f},"
+            f"{metrics.get('baseline', 0):.6f},"
             f"{metrics.get('temperature', 1.0):.4f},{metrics.get('wall_time_ms', 0)},"
             f"{metrics.get('total_packets', 0)},{metrics.get('num_flows_active', 0)}\n"
         )
@@ -161,6 +190,8 @@ class MetricsLogger:
 class CloudSimTrainer:
     """
     Main trainer for CloudSim-in-the-loop RL.
+    
+    Supports both PPO and REINFORCE algorithms.
     """
     
     def __init__(self, config: TrainingConfig):
@@ -175,27 +206,13 @@ class CloudSimTrainer:
         self.episodes_dir = self.output_dir / "episodes"
         self.episodes_dir.mkdir(exist_ok=True)
         
-        # Initialize components
-        self.policy = PolicyNetwork(
-            num_flows=config.num_flows,
-            num_features=config.num_features,
-            hidden_dim=config.hidden_dims[0],
-            num_hidden_layers=len(config.hidden_dims),
-        ).to(self.device)
-
+        # Initialize networks based on algorithm choice
+        if config.algorithm == 'ppo':
+            self._init_ppo(config)
+        else:
+            self._init_reinforce(config)
         
-        self.trainer = BatchReinforceTrainer(
-            self.policy,
-            lr=config.learning_rate,
-            batch_size=config.batch_size,
-            num_updates_per_batch=config.num_updates_per_batch,
-            entropy_weight=config.entropy_weight,
-            max_grad_norm=config.max_grad_norm,
-            normalize_advantages=config.normalize_advantages,
-            total_episodes=config.num_episodes,
-        )
-        
-        self.feature_extractor = FeatureExtractor(random_cold_start=False)
+        self.feature_extractor = FeatureExtractor(random_cold_start=True)
         
         self.episode_runner = EpisodeRunner(
             cloudsim_dir=config.cloudsim_dir,
@@ -203,7 +220,7 @@ class CloudSimTrainer:
             verbose=True,
         )
         
-        self.logger = MetricsLogger(str(self.output_dir))
+        self.logger = MetricsLogger(str(self.output_dir), config.algorithm)
         
         # Temperature schedule
         self.temperature = config.temperature_start
@@ -224,10 +241,63 @@ class CloudSimTrainer:
             json.dump(config.to_dict(), f, indent=2, default=str)
         
         print("CloudSimTrainer initialized")
+        print(f"  Algorithm: {config.algorithm.upper()}")
         print(f"  Topology: Fat-Tree k=4 ({NUM_HOSTS} hosts, {NUM_FLOWS} flows)")
         print(f"  Device: {self.device}")
         print(f"  Output dir: {self.output_dir}")
         print(f"  Policy parameters: {sum(p.numel() for p in self.policy.parameters()):,}")
+        if config.algorithm == 'ppo':
+            print(f"  Value net parameters: {sum(p.numel() for p in self.value_net.parameters()):,}")
+    
+    def _init_ppo(self, config: TrainingConfig) -> None:
+        """Initialize PPO networks and trainer."""
+        # Create policy and value networks
+        self.policy, self.value_net = create_ppo_networks(
+            num_flows=config.num_flows,
+            num_features=config.num_features,
+            hidden_dim=config.hidden_dims[0],
+            num_hidden_layers=len(config.hidden_dims),
+            device=self.device,
+        )
+        
+        # Create PPO trainer
+        self.trainer = PPOTrainer(
+            policy=self.policy,
+            value_net=self.value_net,
+            lr_policy=config.learning_rate,
+            lr_value=config.lr_value,
+            batch_size=config.batch_size,
+            ppo_epochs=config.ppo_epochs,
+            clip_epsilon=config.clip_epsilon,
+            value_loss_coef=config.value_loss_coef,
+            entropy_coef=config.entropy_weight,
+            max_grad_norm=config.max_grad_norm,
+            gae_lambda=config.gae_lambda,
+            normalize_advantages=config.normalize_advantages,
+            target_kl=config.target_kl,
+        )
+    
+    def _init_reinforce(self, config: TrainingConfig) -> None:
+        """Initialize REINFORCE network and trainer."""
+        self.policy = PolicyNetwork(
+            num_flows=config.num_flows,
+            num_features=config.num_features,
+            hidden_dim=config.hidden_dims[0],
+            num_hidden_layers=len(config.hidden_dims),
+        ).to(self.device)
+        
+        self.value_net = None  # REINFORCE doesn't use a value network
+        
+        self.trainer = BatchReinforceTrainer(
+            self.policy,
+            lr=config.learning_rate,
+            batch_size=config.batch_size,
+            num_updates_per_batch=config.num_updates_per_batch,
+            entropy_weight=config.entropy_weight,
+            max_grad_norm=config.max_grad_norm,
+            normalize_advantages=config.normalize_advantages,
+            total_episodes=config.num_episodes,
+        )
     
     def save_checkpoint(self, path: str, is_best: bool = False) -> None:
         """Save training checkpoint."""
@@ -239,7 +309,14 @@ class CloudSimTrainer:
             'temperature': self.temperature,
             'best_reward': self.best_reward,
             'config': self.config.to_dict(),
+            'algorithm': self.config.algorithm,
         }
+        
+        # Add PPO-specific state
+        if self.config.algorithm == 'ppo':
+            checkpoint['value_net_state_dict'] = self.value_net.state_dict()
+            checkpoint['value_optimizer_state_dict'] = self.trainer.value_optimizer.state_dict()
+        
         torch.save(checkpoint, path)
         
         if is_best:
@@ -250,11 +327,22 @@ class CloudSimTrainer:
         """Load training checkpoint."""
         checkpoint = torch.load(path, map_location=self.device)
         
+        # Check algorithm compatibility
+        saved_algo = checkpoint.get('algorithm', 'reinforce')
+        if saved_algo != self.config.algorithm:
+            print(f"Warning: Checkpoint was saved with {saved_algo}, but current config uses {self.config.algorithm}")
+            print(f"Loading policy weights only...")
+        
         self.policy.load_state_dict(checkpoint['model_state_dict'])
         self.trainer.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.temperature = checkpoint['temperature']
         self.best_reward = checkpoint['best_reward']
         self.episode = checkpoint['episode']
+        
+        # Load PPO-specific state if available
+        if self.config.algorithm == 'ppo' and 'value_net_state_dict' in checkpoint:
+            self.value_net.load_state_dict(checkpoint['value_net_state_dict'])
+            self.trainer.value_optimizer.load_state_dict(checkpoint['value_optimizer_state_dict'])
         
         print(f"Loaded checkpoint from {path}")
         print(f"  Resuming from episode {self.episode}")
@@ -325,7 +413,7 @@ class CloudSimTrainer:
         features_tensor = torch.FloatTensor(features).unsqueeze(0).to(self.device)
         
         # 3. Get policy action (select K critical flows)
-        # Note: Don't use no_grad here - we need gradients for REINFORCE
+        # Note: Don't use no_grad here - we need gradients for policy update
         logits = self.policy(features_tensor)
         
         # Sample with temperature
@@ -390,7 +478,7 @@ class CloudSimTrainer:
     
     def train(self, start_episode: int = 0, end_episode: int = None) -> None:
         """
-        Run training loop with batch REINFORCE updates.
+        Run training loop with batch updates.
         
         Args:
             start_episode: Starting episode number
@@ -399,9 +487,14 @@ class CloudSimTrainer:
         if end_episode is None:
             end_episode = self.config.num_episodes
         
-        print(f"Starting training from episode {start_episode} to {end_episode}")
+        algo_name = self.config.algorithm.upper()
+        print(f"Starting {algo_name} training from episode {start_episode} to {end_episode}")
         print(f"  Batch size: {self.config.batch_size}")
-        print(f"  Updates per batch: {self.config.num_updates_per_batch}")
+        if self.config.algorithm == 'ppo':
+            print(f"  PPO epochs per batch: {self.config.ppo_epochs}")
+            print(f"  Clip epsilon: {self.config.clip_epsilon}")
+        else:
+            print(f"  Updates per batch: {self.config.num_updates_per_batch}")
         print("=" * 70)
         
         for episode_id in range(start_episode, end_episode):
@@ -429,11 +522,21 @@ class CloudSimTrainer:
             )
             
             # Batch update when buffer is full
-            loss = 0.0
+            update_metrics = {}
             if self.trainer.should_update():
                 update_metrics = self.trainer.update()
-                loss = update_metrics.get('loss', 0.0)
-                print(f"    [Batch Update] loss={loss:.4f} batch_R={update_metrics.get('batch_reward_mean', 0):.4f}")
+                
+                # Log update info
+                if self.config.algorithm == 'ppo':
+                    print(f"    [{algo_name} Update] "
+                          f"policy_loss={update_metrics.get('policy_loss', 0):.4f} "
+                          f"value_loss={update_metrics.get('value_loss', 0):.4f} "
+                          f"entropy={update_metrics.get('entropy', 0):.4f} "
+                          f"kl={update_metrics.get('kl_divergence', 0):.4f} "
+                          f"epochs={update_metrics.get('num_epochs', 0)}")
+                else:
+                    print(f"    [REINFORCE Update] loss={update_metrics.get('loss', 0):.4f} "
+                          f"batch_R={update_metrics.get('batch_reward_mean', 0):.4f}")
             
             # Update temperature
             self.temperature = max(
@@ -446,7 +549,11 @@ class CloudSimTrainer:
                 'reward': reward,
                 'mean_queuing_ms': episode_summary.get('mean_queuing_ms', 0),
                 'drop_rate': episode_summary.get('drop_rate', 0),
-                'loss': loss,
+                'loss': update_metrics.get('loss', 0),
+                'policy_loss': update_metrics.get('policy_loss', 0),
+                'value_loss': update_metrics.get('value_loss', 0),
+                'entropy': update_metrics.get('entropy', 0),
+                'kl_divergence': update_metrics.get('kl_divergence', 0),
                 'baseline': self.trainer.get_baseline(),
                 'temperature': self.temperature,
                 'wall_time_ms': results.get('wall_time_ms', 0),
@@ -481,6 +588,7 @@ class CloudSimTrainer:
         
         print("=" * 70)
         print("Training complete!")
+        print(f"  Algorithm: {self.config.algorithm.upper()}")
         print(f"  Best reward: {self.best_reward:.6f}")
         print(f"  Final checkpoint: {self.checkpoint_dir}/final_model.pt")
 
@@ -511,6 +619,12 @@ def evaluate_policy(
     
     # Set to eval mode (no gradient)
     trainer.policy.eval()
+    if trainer.value_net is not None:
+        trainer.value_net.eval()
+    
+    # Use low temperature for deterministic evaluation
+    original_temp = trainer.temperature
+    trainer.temperature = 0.1
     
     for ep in range(num_episodes):
         results = trainer.run_episode(
@@ -522,6 +636,9 @@ def evaluate_policy(
             summary = results.get('episode_summary', {})
             queuing_delays.append(summary.get('mean_queuing_ms', 0))
             drop_rates.append(summary.get('drop_rate', 0))
+    
+    # Restore temperature
+    trainer.temperature = original_temp
     
     return {
         'mean_reward': np.mean(rewards),
@@ -543,6 +660,11 @@ def main():
     parser.add_argument("--cloudsim-dir", type=str, required=True,
                        help="Path to CloudSimSDN project directory")
     
+    # Algorithm selection
+    parser.add_argument("--algorithm", type=str, default='ppo',
+                       choices=['ppo', 'reinforce'],
+                       help="Training algorithm: ppo (recommended) or reinforce (default: ppo)")
+    
     # Training settings
     parser.add_argument("--episodes", type=int, default=500,
                        help="Number of training episodes")
@@ -553,17 +675,22 @@ def main():
     parser.add_argument("--k-critical", type=int, default=12,
                        help="Number of critical flows to select (K)")
     parser.add_argument("--lr", type=float, default=3e-4,
-                       help="Learning rate (default: 3e-4 for batch training)")
+                       help="Policy learning rate (default: 3e-4)")
     parser.add_argument("--batch-size", type=int, default=10,
                        help="Episodes per batch update (default: 10)")
-    parser.add_argument("--flow-selection", type=str, default='balanced',
-                       choices=['balanced', 'inter_pod', 'all'],
-                       help="Flow selection strategy (legacy, use --traffic-model instead)")
     parser.add_argument("--traffic-model", type=str, default='hotspot',
                        choices=['uniform', 'hotspot', 'gravity', 'skewed'],
-                       help="Traffic model: uniform, hotspot, gravity, skewed (default: hotspot)")
+                       help="Traffic model (default: hotspot)")
     parser.add_argument("--save-episode-freq", type=int, default=50,
                        help="Save episode data every N episodes (0=never, default=50)")
+    
+    # PPO-specific settings
+    parser.add_argument("--ppo-epochs", type=int, default=4,
+                       help="PPO gradient epochs per batch (default: 4)")
+    parser.add_argument("--clip-epsilon", type=float, default=0.2,
+                       help="PPO clipping parameter (default: 0.2)")
+    parser.add_argument("--lr-value", type=float, default=1e-3,
+                       help="Value network learning rate (default: 1e-3)")
     
     # Output
     parser.add_argument("--output-dir", type=str, default="training_outputs",
@@ -581,6 +708,7 @@ def main():
     
     # Create config
     config = TrainingConfig(
+        algorithm=args.algorithm,
         num_episodes=args.episodes,
         packets_per_episode=args.packets,
         episode_duration=args.duration,
@@ -588,6 +716,9 @@ def main():
         traffic_model=args.traffic_model,
         learning_rate=args.lr,
         batch_size=args.batch_size,
+        ppo_epochs=args.ppo_epochs,
+        clip_epsilon=args.clip_epsilon,
+        lr_value=args.lr_value,
         save_episode_freq=args.save_episode_freq,
         cloudsim_dir=args.cloudsim_dir,
         output_dir=args.output_dir,
